@@ -105,11 +105,15 @@ const int BUTTON_PIN = 27;
 const int ALARM_END_BUTTON_PRESS_AND_HOLD_SECONDS = 25;
 const unsigned long BUZZER_INTERVALS_MS = 800;
 
+// types of button presses
+enum class ButtonTapType { noTap, singleTap, doubleTap, longTap };
+volatile ButtonTapType buttonTap = ButtonTapType::noTap;
+
 const int BUZZER_PIN = 4;
 const int BUZZER_FREQUENCY = 2048;
 const unsigned long BUZZER_TIMEPERIOD_US = 1000000 / BUZZER_FREQUENCY;
 
-bool setAlarmPage = false; // to set alarm
+bool setAlarmPageActive = false; // to set alarm
 int setAlarmPageCounter = 0; // 0 - hr, 1 - min, 2 - alarm active
 int setValue = 0;
 
@@ -183,7 +187,7 @@ void loop(){
       // Timer Disable
       timerAlarmDisable(printLocalTimeTimer);
       // end Set Alarm Page flag if at all On
-      setAlarmPage = false;
+      setAlarmPageActive = false;
       //start buzzer!
       bool alarmEndByUser = false;
       while(!alarmEndByUser) {
@@ -233,7 +237,7 @@ void loop(){
   }
 
   // print local time every second if not in Set Alarm Page
-  if(!setAlarmPage && runPrintLocalTimeFn) {
+  if(!setAlarmPageActive && runPrintLocalTimeFn) {
     runPrintLocalTimeFn = false;
     printLocalTime();
   }
@@ -250,101 +254,97 @@ void loop(){
     backlightOn = false;
   }
 
-  // single press
-  if(!setAlarmPage && buttonActive()) {
+  checkBtnPress();
+  if(buttonTap != ButtonTapType::noTap) {
+    Serial.print("buttonTap "); Serial.println(static_cast<int>(buttonTap));
     turnBacklightOn();
-  }
-
-  if(buttonActive()) {
-    // Button Press Case
-    turnBacklightOn();
-    bool longPress = false, doublePress = false;
-    checkBtnPress(longPress, doublePress);
-    Serial.print("longPress ");
-    Serial.print(longPress);
-    Serial.print("   doublePress ");
-    Serial.println(doublePress);
-
-    if(!setAlarmPage && longPress) {
-      Serial.println("Long Press -> Set Alarm Page On");
-      setAlarmPageCounter = 0;
-      setValue = alarmHour;
-      settingsScreen();
-    }
-    else if(setAlarmPage && longPress) {
-      Serial.println("Long Press in Set Alarm Page -> Go to next Set Alarm Page -> Save Settings -> Turn Set Alarm Page Off");
-      switch(setAlarmPageCounter) {
-      case 0:
-        alarmHour = setValue;
-        setAlarmPageCounter = 1;
-        setValue = alarmMin;
-        settingsScreen();
-        break;
-      case 1:
-        alarmMin = setValue;
-        setAlarmPageCounter = 2;
-        setValue = alarmActive;
-        settingsScreen();
-        break;
-      case 2:
-        if(setValue)
-          alarmActive = true;
-        else
-          alarmActive = false;
-        setEEPROMparams();
-        setAlarmPage = false;
-        break;
+    switch(buttonTap) {
+    case ButtonTapType::singleTap:
+      if(setAlarmPageActive) {
+        Serial.println("Short Press in Set Alarm Page -> Increment setting");
+        switch(setAlarmPageCounter) {
+        case 0:
+          if(setValue < 23)
+            setValue++;
+          else
+            setValue = 0;
+          break;
+        case 1:
+          if(setValue < 55)
+            setValue = min(setValue + 5, 55);
+          else
+            setValue = 0;
+          break;
+        case 2:
+          if(setValue)
+            setValue = 0;
+          else
+            setValue = 1;
+          break;
+        }
+        setAlarmPage();
       }
-    }
-    else if(setAlarmPage && !longPress && !doublePress) {
-      Serial.println("Short Press in Set Alarm Page -> Increment setting");
-      switch(setAlarmPageCounter) {
-      case 0:
-        if(setValue < 23)
-          setValue++;
-        else
-          setValue = 0;
-        break;
-      case 1:
-        if(setValue < 55)
-          setValue = min(setValue + 5, 55);
-        else
-          setValue = 0;
-        break;
-      case 2:
-        if(setValue)
-          setValue = 0;
-        else
-          setValue = 1;
-        break;
+      break;
+    case ButtonTapType::doubleTap:
+      if(setAlarmPageActive) {
+        Serial.println("Double Press in Set Alarm Page -> Decrement setting");
+        switch(setAlarmPageCounter) {
+        case 0:
+          if(setValue > 0)
+            setValue--;
+          else
+            setValue = 23;
+          break;
+        case 1:
+          if(setValue > 0)
+            setValue = max(setValue - 5, 0);
+          else
+            setValue = 55;
+          break;
+        case 2:
+          if(setValue)
+            setValue = 0;
+          else
+            setValue = 1;
+          break;
+        }
+        setAlarmPage();
       }
-      settingsScreen();
-    }
-    else if(setAlarmPage && !longPress && doublePress) {
-      Serial.println("Double Press in Set Alarm Page -> Decrement setting");
-      switch(setAlarmPageCounter) {
-      case 0:
-        if(setValue > 0)
-          setValue--;
-        else
-          setValue = 23;
-        break;
-      case 1:
-        if(setValue > 0)
-          setValue = max(setValue - 5, 0);
-        else
-          setValue = 55;
-        break;
-      case 2:
-        if(setValue)
-          setValue = 0;
-        else
-          setValue = 1;
-        break;
+      break;
+    case ButtonTapType::longTap:
+      if(setAlarmPageActive) {
+        Serial.println("Long Press in Set Alarm Page -> Go to next Set Alarm Page -> Save Settings -> Turn Set Alarm Page Off");
+        switch(setAlarmPageCounter) {
+        case 0:
+          alarmHour = setValue;
+          setAlarmPageCounter = 1;
+          setValue = alarmMin;
+          setAlarmPage();
+          break;
+        case 1:
+          alarmMin = setValue;
+          setAlarmPageCounter = 2;
+          setValue = alarmActive;
+          setAlarmPage();
+          break;
+        case 2:
+          if(setValue)
+            alarmActive = true;
+          else
+            alarmActive = false;
+          setEEPROMparams();
+          setAlarmPageActive = false;
+          break;
+        }
       }
-      settingsScreen();
+      else {
+        Serial.println("Long Press -> Set Alarm Page On");
+        setAlarmPageCounter = 0;
+        setValue = alarmHour;
+        setAlarmPage();
+      }
+      break;
     }
-
   }
 
   // serial inputs and processing for debugging and development
@@ -487,14 +487,20 @@ bool buttonActive() {
   return !digitalRead(BUTTON_PIN);  //active low
 }
 
-void checkBtnPress(bool &longPress, bool &doublePress) {
-  unsigned long firstBtnPressStartTimeMs = millis();
-  // note how much time btn is pressed
+void checkBtnPress() {
+  // set buttonTap to noTap
+  buttonTap = ButtonTapType::noTap;
+  unsigned long btnPressStartTimeMs = millis();
+  // check for button press and note how much time it is pressed
   while(buttonActive()) {
+    // it is at least a single tap
+    buttonTap = ButtonTapType::singleTap;
     delay(1);
-    if(millis() - firstBtnPressStartTimeMs > 650) {
-      longPress = true;
-      if(!setAlarmPage) {
+    if(millis() - btnPressStartTimeMs > 650) {
+      // it is a long tap
+      buttonTap = ButtonTapType::longTap;
+      // set display change inside while loop itself to indicate accepted user input
+      if(!setAlarmPageActive) {
         // goto Set Alarm Page
         lcd.clear();
         lcd.setCursor(6, 0);
@@ -513,27 +519,28 @@ void checkBtnPress(bool &longPress, bool &doublePress) {
       }
     }
   }
-  unsigned long firstBtnPressTimeMs = millis() - firstBtnPressStartTimeMs;
-  doublePress = false;
-  if(!longPress) {
-    // check for second btn press
-    firstBtnPressStartTimeMs = millis();
-    while(!buttonActive() && millis() - firstBtnPressStartTimeMs < 300) {
+  // if single Tap then check for double Tap
+  if(buttonTap == ButtonTapType::singleTap) {
+    btnPressStartTimeMs = millis();
+    // wait for 300 milliseconds with no tap to see if user agains taps
+    while(!buttonActive() && millis() - btnPressStartTimeMs < 300) {
       delay(1);
     }
-    unsigned long secondBtnPressStartTimeMs = millis();
     while(buttonActive()) {
       delay(1);
-      doublePress = true;
-      if(setAlarmPage) {
-        // double Press is decrement or left arrow inside Set Alarm Screen
+      // it is a double Tap
+      buttonTap = ButtonTapType::doubleTap;
+      // set display change inside while loop itself to indicate accepted user input
+      if(setAlarmPageActive) {
+        // double tap is decrement or left arrow inside Set Alarm Screen
         lcd.setCursor(LCD_COLUMNS - 1, LCD_ROWS - 1);
         lcd.printByte(leftArrowId);
         delay(300);
       }
     }
-    if(setAlarmPage && !doublePress) {
-      // single Press is increment or right arrow inside Set Alarm Screen
+    // set display change here itself to indicate accepted user input
+    if(setAlarmPageActive && buttonTap == ButtonTapType::singleTap) {
+      // single tap is increment or right arrow inside Set Alarm Screen
       lcd.setCursor(LCD_COLUMNS - 1, LCD_ROWS - 1);
       lcd.printByte(rightArrowId);
       delay(300);
@@ -548,8 +555,8 @@ void turnBacklightOn() {
   backlightTurnedOnAtMs = millis();
 }
 
-void settingsScreen() {
-  setAlarmPage = true;
+void setAlarmPage() {
+  setAlarmPageActive = true;
   currentDateOnDisplaySet = false;  // to print date on display again, once time is again printed
   turnBacklightOn();
   lcd.clear();
