@@ -97,7 +97,7 @@ bool currentDateOnDisplaySet = false;
 // Hardware Timer to tick every 1 second
 hw_timer_t *printLocalTimeTimer = NULL;
 
-bool runPrintLocalTimeFn = false;
+volatile bool runPrintLocalTimeFn = false;
 
 // Timer Interrupt Service Routine
 void IRAM_ATTR printLocalTimeISR() {
