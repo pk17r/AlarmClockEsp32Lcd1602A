@@ -1,4 +1,26 @@
 /*
+  Powerful Alarm Clock with Long Press Alarm End Button to actually make you Wake Up! :)
+  
+  Prashant Kumar
+  
+  Components Required:
+  Microcontroller - ESP32
+  Buzzer - Passive Buzzer - KSSG1203-42 - Rated Frequency 2048Hz, 3-5V, 35mA
+  Display - LCD 1602A with PCF8574T I/O Expander - I2C Communication
+  Button - 1x Tactile Button Pulled Up with a 10K resistor pull-up to 3.3V and a 100nF Decoupling Capacitor to ground
+  MOSFET - 1x N7000 NPN MOSFET - Powers Buzzer with 5V and driven by ESP32 Buzzer Drive Pin to Gate
+  LED - 1x 5mm LED that flashes along with Buzzer, driven by ESP32 Buzzer Drive Pin
+  Resistor - 1x 10Ohm - In series with Buzzer to contain current to 35mA - 5V to Buzzer+
+  
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files.
+  
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+  
+*/
+
+/*
   Rui Santos
   Complete project details at https://RandomNerdTutorials.com/esp32-date-time-ntp-client-server-arduino/
   
@@ -48,7 +70,9 @@ const unsigned long BUZZER_TIMEPERIOD_US = 1000000 / BUZZER_FREQUENCY;
 
 #include <Preferences.h> //https://github.com/espressif/arduino-esp32/tree/master/libraries/Preferences
 
+// ESP32 EEPROM Data Access
 Preferences preferences;
+
 unsigned int alarmHour = 0;
 unsigned int alarmMin = 0;
 bool alarmActive = false;
@@ -57,7 +81,7 @@ const unsigned int ALARM_MIN_DEFAULT = 30;
 const bool ALARM_ACTIVE_DEFAULT = false;
 
 const int BUTTON_PIN = 27;
-const int SNOOZE_HOLD_SEC = 25;
+const int BUTTON_HOLD_SECONDS = 25;
 const unsigned long BUZZER_INTERVALS_MS = 800;
 
 bool buzzerON = false;
@@ -84,6 +108,7 @@ void setup(){
   lcd.init();
   // turn on LCD backlight
   turnBacklightOn();
+  lcd.noCursor();
   
   int attemptsWiFi = 0;
   while(updateTimeFromInternet() || attemptsWiFi > 2) {
@@ -208,6 +233,7 @@ void loop(){
   }
 
   if(!buzzerON && buttonActive()) {
+    // Buzzer Off & Button Press Case
     // Alarm ON -> buzzerON case is handled in core0 loop
     turnBacklightOn();
     bool longPress = false, doublePress = false;
@@ -376,7 +402,7 @@ void TimeAndLCDUpdateTask( void * pvParameters ){
           settingsScreen();
       }
       else {
-        alarmOnScreen(SNOOZE_HOLD_SEC);
+        alarmOnScreen(BUTTON_HOLD_SECONDS);
         if(!buttonActive()) {
           unsigned long timeStartMs = millis();
           while((millis() - timeStartMs < BUZZER_INTERVALS_MS) && !buttonActive()) {
@@ -391,11 +417,11 @@ void TimeAndLCDUpdateTask( void * pvParameters ){
           }
         }
         if(buttonActive()) {
-          unsigned long snoozeTimeStartMs = millis(); //note time of snooze press
-          int snoozeHoldSecondsCounter = SNOOZE_HOLD_SEC;
+          unsigned long buttonPressStartTimeMs = millis(); //note time of button press
+          int buttonPressSecondsCounter = BUTTON_HOLD_SECONDS;
           while(buttonActive()) {
-            //end alarm after holding snooze for SNOOZE_HOLD_SEC
-            if(millis() - snoozeTimeStartMs > SNOOZE_HOLD_SEC * 1000) {
+            //end alarm after holding button for BUTTON_HOLD_SECONDS
+            if(millis() - buttonPressStartTimeMs > BUTTON_HOLD_SECONDS * 1000) {
               //good morning screen! :)
               lcd.clear();
               lcd.setCursor(0, 0);
@@ -426,9 +452,9 @@ void TimeAndLCDUpdateTask( void * pvParameters ){
               break;
             }
             // display countdown to alarm off
-            if(SNOOZE_HOLD_SEC - (millis() - snoozeTimeStartMs) / 1000 < snoozeHoldSecondsCounter) {
-              snoozeHoldSecondsCounter--;
-              alarmOnScreen(snoozeHoldSecondsCounter);
+            if(BUTTON_HOLD_SECONDS - (millis() - buttonPressStartTimeMs) / 1000 < buttonPressSecondsCounter) {
+              buttonPressSecondsCounter--;
+              alarmOnScreen(buttonPressSecondsCounter);
             }
           }
         }
@@ -534,7 +560,7 @@ void alarmOnScreen(int countDown) {
     lcd.print("0");
   lcd.print(alarmMin);
   lcd.setCursor(0, 1);
-  lcd.print("Press Snooze ");
+  lcd.print("Press Button ");
   lcd.print(countDown);
   lcd.print("s");
 }
