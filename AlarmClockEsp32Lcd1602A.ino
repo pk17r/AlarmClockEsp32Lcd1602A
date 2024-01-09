@@ -49,15 +49,39 @@ int printLocalTime();
 struct tm currentTimeInfo;
 
 
+#include <Wire.h>
 #include <LiquidCrystal_I2C.h>
+
+#if defined(ARDUINO) && ARDUINO >= 100
+#define printByte(args)  write(args);
+#else
+#define printByte(args)  print(args,BYTE);
+#endif
 
 // LCD Display constants and variables
 const int LCD_ADDRESS = 0x27;
 const int LCD_COLUMNS = 16;
 const int LCD_ROWS = 2;
-const unsigned long BACKLIGHT_TURNOFF_AFTER_MS = 20000;
+const unsigned long BACKLIGHT_TURNOFF_AFTER_MS = 60*1000;
 bool backlightOn = false;
 unsigned long backlightTurnedOnAtMs = 0;
+
+uint8_t bell[8]  = {0x4,0xe,0xe,0xe,0x1f,0x0,0x4};
+uint8_t bellId = 0x00;
+uint8_t heart[8] = {0x0,0xa,0x1f,0x1f,0xe,0x4,0x0};
+uint8_t heartId = 0x01;
+uint8_t duck[8]  = {0x0,0xc,0x1d,0xf,0xf,0x6,0x0};
+uint8_t duckId = 0x02;
+uint8_t check[8] = {0x0,0x1,0x3,0x16,0x1c,0x8,0x0};
+uint8_t checkId = 0x03;
+uint8_t cross[8] = {0x0,0x1b,0xe,0x4,0xe,0x1b,0x0};
+uint8_t crossId = 0x04;
+uint8_t retArrow[8] = {	0x1,0x1,0x5,0x9,0x1f,0x8,0x4};
+uint8_t retArrowId = 0x05;
+uint8_t smiley[8]  = {0x02,  0x01,  0x09,  0x01,  0x01,  0x09,  0x01,  0x02};
+uint8_t smileyId = 0x06;
+uint8_t rightArrowId = 0x7E;
+uint8_t leftArrowId = 0x7F;
 
 // set LCD address, number of columns and rows
 // if you don't know your display address, run an I2C scanner sketch
@@ -84,7 +108,6 @@ const unsigned long BUZZER_INTERVALS_MS = 800;
 const int BUZZER_PIN = 4;
 const int BUZZER_FREQUENCY = 2048;
 const unsigned long BUZZER_TIMEPERIOD_US = 1000000 / BUZZER_FREQUENCY;
-bool buzzerON = false;
 
 bool settingsMode = false; // to set alarm
 int settingsModeCounter = 0; // 0 - hr, 1 - min, 2 - alarm active
@@ -114,6 +137,16 @@ void setup(){
   lcd.init();
   // turn on LCD backlight
   turnBacklightOn();
+  // create lcd characters
+  lcd.createChar(bellId, bell);
+  lcd.createChar(heartId, heart);
+  //lcd.createChar(duckId, duck);
+  //lcd.createChar(checkId, check);
+  //lcd.createChar(crossId, cross);
+  lcd.createChar(retArrowId, retArrow);
+  lcd.createChar(smileyId, smiley);
+  //display welcome screen
+  welcomeScreen();
 
   // init saved data in EEPROM
  	getOrSetDefaultEEPROMparams(false); //readOnly = false
@@ -140,30 +173,21 @@ void setup(){
 
   // Timer Enable
   timerAlarmEnable(printLocalTimeTimer);
-
-  //delay(500);
 }
 
 void loop(){
-  //print local time every second  
-  if(runPrintLocalTimeFn) {
-    runPrintLocalTimeFn = false;
-    printLocalTime();
-  }
-  
   // Activate Buzzer at Alarm Time
-  if(alarmActive && !buzzerON) {
+  if(alarmActive) {
     // check during first 5 seconds of alarm time
     if(currentTimeInfo.tm_hour == alarmHour && currentTimeInfo.tm_min == alarmMin && currentTimeInfo.tm_sec <= 5) {
       // Timer Disable
       timerAlarmDisable(printLocalTimeTimer);
-      //end settings mode if at all On
+      // end settings mode if at all On
       settingsMode = false;
       //start buzzer!
-      buzzerON = true;
       bool alarmEndByUser = false;
       while(!alarmEndByUser) {
-        //display Alarm On screen with seconds user needs to press and hold button to end alarm
+        // display Alarm On screen with seconds user needs to press and hold button to end alarm
         alarmOnScreen(ALARM_END_BUTTON_PRESS_AND_HOLD_SECONDS);
         // activate buzzer if button is not pressed by user
         if(!buttonActive()) {
@@ -185,54 +209,36 @@ void loop(){
         if(buttonActive()) {
           unsigned long buttonPressStartTimeMs = millis(); //note time of button press
           int buttonPressSecondsCounter = ALARM_END_BUTTON_PRESS_AND_HOLD_SECONDS;
-          //while button is pressed, display seconds countdown
+          // while button is pressed, display seconds countdown
           while(buttonActive() && !alarmEndByUser) {
             // display countdown to alarm off
             if(ALARM_END_BUTTON_PRESS_AND_HOLD_SECONDS - (millis() - buttonPressStartTimeMs) / 1000 < buttonPressSecondsCounter) {
               buttonPressSecondsCounter--;
               alarmOnScreen(buttonPressSecondsCounter);
             }
-            //end alarm after holding button for ALARM_END_BUTTON_PRESS_AND_HOLD_SECONDS
+            // end alarm after holding button for ALARM_END_BUTTON_PRESS_AND_HOLD_SECONDS
             if(millis() - buttonPressStartTimeMs > ALARM_END_BUTTON_PRESS_AND_HOLD_SECONDS * 1000) {
-              //good morning screen! :)
-              lcd.clear();
-              lcd.setCursor(0, 0);
-              lcd.print("Good Morning!");
-              for(int i = 0; i < 10; i++) {
-                if(i % 3 == 0) {
-                  lcd.setCursor(13, 0);
-                  lcd.print(":) ");
-                  lcd.setCursor(0, 1);
-                  lcd.print(":) :) :) :) :) :");
-                }
-                else if(i % 3 == 1) {
-                  lcd.setCursor(13, 0);
-                  lcd.print(" :)");
-                  lcd.setCursor(0, 1);
-                  lcd.print(" :) :) :) :) :) ");
-                }
-                else {
-                  lcd.setCursor(13, 0);
-                  lcd.print("  :");
-                  lcd.setCursor(0, 1);
-                  lcd.print(") :) :) :) :) :)");
-                }
-                delay(1000);
-              }
-              buzzerON = false;
+              // good morning screen! :)
+              goodMorningScreen();
               alarmEndByUser = true;
             }
           }
         }
       }
       // Alarm ended by user!
-      currentDateOnDisplaySet = false;  // to do lcd clear() once date is again printed
-      // Timer Enable
+      currentDateOnDisplaySet = false;  // to print date on display again, once time is again printed
+      // Timer re-enable
       timerAlarmEnable(printLocalTimeTimer);
     }
   }
 
-  //update time 1 hr after alarm
+  // print local time every second if not in settings mode
+  if(!settingsMode && runPrintLocalTimeFn) {
+    runPrintLocalTimeFn = false;
+    printLocalTime();
+  }
+  
+  // try update time 1 hr after alarm time every day to keep time accurate
   if(currentTimeInfo.tm_hour == alarmHour + 1 && currentTimeInfo.tm_min == alarmMin && currentTimeInfo.tm_sec <= 5) {
     connectWiFiAndUpdateCurrentTimeFromInternet();
     delay(5000);
@@ -249,9 +255,8 @@ void loop(){
     turnBacklightOn();
   }
 
-  if(!buzzerON && buttonActive()) {
-    // Buzzer Off & Button Press Case
-    // Alarm ON -> buzzerON case is handled in core0 loop
+  if(buttonActive()) {
+    // Button Press Case
     turnBacklightOn();
     bool longPress = false, doublePress = false;
     checkBtnPress(longPress, doublePress);
@@ -262,7 +267,6 @@ void loop(){
 
     if(!settingsMode && longPress) {
       Serial.println("Long Press -> Settings Mode On");
-      settingsMode = true;
       settingsModeCounter = 0;
       setValue = alarmHour;
       settingsScreen();
@@ -350,20 +354,16 @@ void loop(){
     while(Serial.available())
       Serial.read();
     switch(input) {
-      case 'b':
-        Serial.print("Buzzer ");
-        if(!buzzerON)
-        {
-          Serial.println("ON");
-          buzzerON = true;
-        }
-        else
-        {
-          Serial.println("OFF");
-          buzzerON = false;
-          delay(50);
-          digitalWrite(BUZZER_PIN, LOW);
-        }
+      case 'w':
+        welcomeScreen();
+        delay(5000);
+        break;
+      case 'a':
+        alarmOnScreen(ALARM_END_BUTTON_PRESS_AND_HOLD_SECONDS);
+        delay(5000);
+        break;
+      case 'g':
+        goodMorningScreen();
         break;
       case 'r':
         getEEPROMparams();
@@ -407,6 +407,7 @@ void loop(){
 
 int connectWiFiAndUpdateCurrentTimeFromInternet() {
   int returnVal = 1;
+  currentDateOnDisplaySet = false;  // to print date on display again, once time is again printed
   // Connect to Wi-Fi
   Serial.print("Connecting to ");
   Serial.println(SSID);
@@ -454,8 +455,36 @@ int connectWiFiAndUpdateCurrentTimeFromInternet() {
   return returnVal;
 }
 
+void welcomeScreen() {
+  currentDateOnDisplaySet = false;  // to print date on display again, once time is again printed
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print(" "); lcd.printByte(heartId); lcd.print(" Long Press "); lcd.printByte(smileyId); lcd.print(" ");
+  lcd.setCursor(0, 1);
+  lcd.printByte(bellId); lcd.print(" "); lcd.printByte(bellId); lcd.print(" "); lcd.printByte(bellId); lcd.print(" Alarm  "); lcd.printByte(bellId); lcd.print(" "); lcd.printByte(bellId);
+}
+
+void goodMorningScreen() {
+  currentDateOnDisplaySet = false;  // to print date on display again, once time is again printed
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.printByte(heartId);lcd.print(" Good Morning!");lcd.print(&currentTimeInfo, " %a %d %b");
+  lcd.setCursor(0, 1);
+  for(int i = 0; i < 7; i++) {
+    lcd.print(" ");
+    lcd.printByte(smileyId);
+    lcd.print(" ");
+    lcd.printByte(heartId);
+  }
+  delay(1000);
+  for(int i = 0; i < 10; i++) {
+    lcd.scrollDisplayLeft();
+    delay(1000);
+  }
+}
+
 bool buttonActive() {
-  return !digitalRead(BUTTON_PIN);
+  return !digitalRead(BUTTON_PIN);  //active low
 }
 
 void checkBtnPress(bool &longPress, bool &doublePress) {
@@ -465,8 +494,23 @@ void checkBtnPress(bool &longPress, bool &doublePress) {
     delay(1);
     if(millis() - firstBtnPressStartTimeMs > 650) {
       longPress = true;
-      lcd.setCursor(15, 1);
-      lcd.print("L");
+      if(!settingsMode) {
+        // goto settings Mode
+        lcd.clear();
+        lcd.setCursor(6, 0);
+        lcd.print("SET");
+        lcd.setCursor(4, 1);
+        lcd.print("ALARM");
+        lcd.print(" ");
+        lcd.printByte(bellId);
+        delay(2000);
+      }
+      else {
+        // return arrow inside Set Alarm Screen
+        lcd.setCursor(LCD_COLUMNS - 1, LCD_ROWS - 1);
+        lcd.printByte(retArrowId);
+        delay(500);
+      }
     }
   }
   unsigned long firstBtnPressTimeMs = millis() - firstBtnPressStartTimeMs;
@@ -482,9 +526,17 @@ void checkBtnPress(bool &longPress, bool &doublePress) {
       delay(1);
       doublePress = true;
       if(settingsMode) {
-        lcd.setCursor(15, 1);
-        lcd.print("D");
+        // double Press is decrement or left arrow inside Set Alarm Screen
+        lcd.setCursor(LCD_COLUMNS - 1, LCD_ROWS - 1);
+        lcd.printByte(leftArrowId);
+        delay(300);
       }
+    }
+    if(settingsMode && !doublePress) {
+      // single Press is increment or right arrow inside Set Alarm Screen
+      lcd.setCursor(LCD_COLUMNS - 1, LCD_ROWS - 1);
+      lcd.printByte(rightArrowId);
+      delay(300);
     }
   }
 }
@@ -497,6 +549,8 @@ void turnBacklightOn() {
 }
 
 void settingsScreen() {
+  settingsMode = true;
+  currentDateOnDisplaySet = false;  // to print date on display again, once time is again printed
   turnBacklightOn();
   lcd.clear();
   lcd.setCursor(0, 0);
@@ -516,10 +570,14 @@ void settingsScreen() {
   switch(settingsModeCounter) {
   case 0:
     lcd.print("Set Hr to ");
+    if(setValue < 10)
+      lcd.print("0");
     lcd.print(setValue);
     break;
   case 1:
     lcd.print("Set Min to ");
+    if(setValue < 10)
+      lcd.print("0");
     lcd.print(setValue);
     break;
   case 2:
@@ -534,10 +592,11 @@ void settingsScreen() {
 
 void alarmOnScreen(int countDown) {
   turnBacklightOn();
-  currentDateOnDisplaySet = false;  // to do lcd clear() once date is again printed
+  currentDateOnDisplaySet = false;  // to print date on display again, once time is again printed
   lcd.clear();
   lcd.setCursor(0, 0);
-  lcd.print("WAKE-UP! ");
+  lcd.printByte(bellId);
+  lcd.print(" WAKE-UP! ");
   if(alarmHour < 10)
     lcd.print("0");
   lcd.print(alarmHour);
@@ -561,19 +620,6 @@ int printLocalTime(){
     lcd.print("time!");
     return 1;
   }
-
-  // Serial.print("Time ");
-  // Serial.print(currentTimeInfo.tm_hour);
-  // Serial.print(":");
-  // Serial.print(currentTimeInfo.tm_min);
-  // Serial.print(":");
-  // Serial.println(currentTimeInfo.tm_sec);
-  // Serial.print("currentTimeInfo.tm_yday ");
-  // Serial.print(currentTimeInfo.tm_yday);
-  // Serial.print("currentDateOnDisplay_yday ");
-  // Serial.print(currentDateOnDisplay_yday);
-  // Serial.print("currentDateOnDisplaySet ");
-  // Serial.println(currentDateOnDisplaySet);
 
   // clear LCD if today's date has changed
   if(currentTimeInfo.tm_yday != currentDateOnDisplay_yday)
