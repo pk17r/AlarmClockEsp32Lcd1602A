@@ -109,8 +109,8 @@ const int BUZZER_PIN = 4;
 const int BUZZER_FREQUENCY = 2048;
 const unsigned long BUZZER_TIMEPERIOD_US = 1000000 / BUZZER_FREQUENCY;
 
-bool settingsMode = false; // to set alarm
-int settingsModeCounter = 0; // 0 - hr, 1 - min, 2 - alarm active
+bool setAlarmPage = false; // to set alarm
+int setAlarmPageCounter = 0; // 0 - hr, 1 - min, 2 - alarm active
 int setValue = 0;
 
 // keeping track of today's date to update display's second line only on date change
@@ -182,8 +182,8 @@ void loop(){
     if(currentTimeInfo.tm_hour == alarmHour && currentTimeInfo.tm_min == alarmMin && currentTimeInfo.tm_sec <= 5) {
       // Timer Disable
       timerAlarmDisable(printLocalTimeTimer);
-      // end settings mode if at all On
-      settingsMode = false;
+      // end Set Alarm Page flag if at all On
+      setAlarmPage = false;
       //start buzzer!
       bool alarmEndByUser = false;
       while(!alarmEndByUser) {
@@ -232,8 +232,8 @@ void loop(){
     }
   }
 
-  // print local time every second if not in settings mode
-  if(!settingsMode && runPrintLocalTimeFn) {
+  // print local time every second if not in Set Alarm Page
+  if(!setAlarmPage && runPrintLocalTimeFn) {
     runPrintLocalTimeFn = false;
     printLocalTime();
   }
@@ -251,7 +251,7 @@ void loop(){
   }
 
   // single press
-  if(!settingsMode && buttonActive()) {
+  if(!setAlarmPage && buttonActive()) {
     turnBacklightOn();
   }
 
@@ -265,24 +265,24 @@ void loop(){
     Serial.print("   doublePress ");
     Serial.println(doublePress);
 
-    if(!settingsMode && longPress) {
-      Serial.println("Long Press -> Settings Mode On");
-      settingsModeCounter = 0;
+    if(!setAlarmPage && longPress) {
+      Serial.println("Long Press -> Set Alarm Page On");
+      setAlarmPageCounter = 0;
       setValue = alarmHour;
       settingsScreen();
     }
-    else if(settingsMode && longPress) {
-      Serial.println("Long Press in Settings Mode -> Go to next Settings -> Save Settings -> Turn Settings Mode Off");
-      switch(settingsModeCounter) {
+    else if(setAlarmPage && longPress) {
+      Serial.println("Long Press in Set Alarm Page -> Go to next Set Alarm Page -> Save Settings -> Turn Set Alarm Page Off");
+      switch(setAlarmPageCounter) {
       case 0:
         alarmHour = setValue;
-        settingsModeCounter = 1;
+        setAlarmPageCounter = 1;
         setValue = alarmMin;
         settingsScreen();
         break;
       case 1:
         alarmMin = setValue;
-        settingsModeCounter = 2;
+        setAlarmPageCounter = 2;
         setValue = alarmActive;
         settingsScreen();
         break;
@@ -292,13 +292,13 @@ void loop(){
         else
           alarmActive = false;
         setEEPROMparams();
-        settingsMode = false;
+        setAlarmPage = false;
         break;
       }
     }
-    else if(settingsMode && !longPress && !doublePress) {
-      Serial.println("Short Press in Settings Mode -> Increment setting");
-      switch(settingsModeCounter) {
+    else if(setAlarmPage && !longPress && !doublePress) {
+      Serial.println("Short Press in Set Alarm Page -> Increment setting");
+      switch(setAlarmPageCounter) {
       case 0:
         if(setValue < 23)
           setValue++;
@@ -320,9 +320,9 @@ void loop(){
       }
       settingsScreen();
     }
-    else if(settingsMode && !longPress && doublePress) {
-      Serial.println("Double Press in Settings Mode -> Decrement setting");
-      switch(settingsModeCounter) {
+    else if(setAlarmPage && !longPress && doublePress) {
+      Serial.println("Double Press in Set Alarm Page -> Decrement setting");
+      switch(setAlarmPageCounter) {
       case 0:
         if(setValue > 0)
           setValue--;
@@ -494,8 +494,8 @@ void checkBtnPress(bool &longPress, bool &doublePress) {
     delay(1);
     if(millis() - firstBtnPressStartTimeMs > 650) {
       longPress = true;
-      if(!settingsMode) {
-        // goto settings Mode
+      if(!setAlarmPage) {
+        // goto Set Alarm Page
         lcd.clear();
         lcd.setCursor(6, 0);
         lcd.print("SET");
@@ -525,14 +525,14 @@ void checkBtnPress(bool &longPress, bool &doublePress) {
     while(buttonActive()) {
       delay(1);
       doublePress = true;
-      if(settingsMode) {
+      if(setAlarmPage) {
         // double Press is decrement or left arrow inside Set Alarm Screen
         lcd.setCursor(LCD_COLUMNS - 1, LCD_ROWS - 1);
         lcd.printByte(leftArrowId);
         delay(300);
       }
     }
-    if(settingsMode && !doublePress) {
+    if(setAlarmPage && !doublePress) {
       // single Press is increment or right arrow inside Set Alarm Screen
       lcd.setCursor(LCD_COLUMNS - 1, LCD_ROWS - 1);
       lcd.printByte(rightArrowId);
@@ -549,7 +549,7 @@ void turnBacklightOn() {
 }
 
 void settingsScreen() {
-  settingsMode = true;
+  setAlarmPage = true;
   currentDateOnDisplaySet = false;  // to print date on display again, once time is again printed
   turnBacklightOn();
   lcd.clear();
@@ -567,7 +567,7 @@ void settingsScreen() {
   else
     lcd.print(" OFF");
   lcd.setCursor(0, 1);
-  switch(settingsModeCounter) {
+  switch(setAlarmPageCounter) {
   case 0:
     lcd.print("Set Hr to ");
     if(setValue < 10)
