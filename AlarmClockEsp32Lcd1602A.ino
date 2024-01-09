@@ -42,36 +42,33 @@ const char* NTP_SERVER = "pool.ntp.org";
 const long  GMT_OFFSET_SEC = -8*60*60;
 const int   DAYLIGHT_OFFSET_SEC = 60*60;
 
+// print local time function decleration
 int printLocalTime();
 
-struct tm timeinfo;
+// tm time stuct to keep current time
+struct tm currentTimeInfo;
 
-/*********
-  Rui Santos
-  Complete project details at https://randomnerdtutorials.com  
-*********/
+
 #include <LiquidCrystal_I2C.h>
 
-// set the LCD number of columns and rows
+// LCD Display constants and variables
 const int LCD_ADDRESS = 0x27;
 const int LCD_COLUMNS = 16;
 const int LCD_ROWS = 2;
+const unsigned long BACKLIGHT_TURNOFF_AFTER_MS = 20000;
+bool backlightOn = false;
+unsigned long backlightTurnedOnAtMs = 0;
 
 // set LCD address, number of columns and rows
 // if you don't know your display address, run an I2C scanner sketch
 LiquidCrystal_I2C lcd(LCD_ADDRESS, LCD_COLUMNS, LCD_ROWS);
 
-// Task Handle for core 0
-TaskHandle_t TaskCore0;
-
-const int BUZZER_PIN = 4;
-const int BUZZER_FREQUENCY = 2048;
-const unsigned long BUZZER_TIMEPERIOD_US = 1000000 / BUZZER_FREQUENCY;
 
 #include <Preferences.h> //https://github.com/espressif/arduino-esp32/tree/master/libraries/Preferences
 
 // ESP32 EEPROM Data Access
 Preferences preferences;
+#define EEPROM_DATA_KEY "myfile"
 
 unsigned int alarmHour = 0;
 unsigned int alarmMin = 0;
@@ -81,22 +78,31 @@ const unsigned int ALARM_MIN_DEFAULT = 30;
 const bool ALARM_ACTIVE_DEFAULT = false;
 
 const int BUTTON_PIN = 27;
-const int BUTTON_HOLD_SECONDS = 25;
+const int ALARM_END_BUTTON_PRESS_AND_HOLD_SECONDS = 25;
 const unsigned long BUZZER_INTERVALS_MS = 800;
 
+const int BUZZER_PIN = 4;
+const int BUZZER_FREQUENCY = 2048;
+const unsigned long BUZZER_TIMEPERIOD_US = 1000000 / BUZZER_FREQUENCY;
 bool buzzerON = false;
 
 bool settingsMode = false; // to set alarm
 int settingsModeCounter = 0; // 0 - hr, 1 - min, 2 - alarm active
 int setValue = 0;
 
-int currentHr = 0, currentMin = 0, currentSec = 0; // Hr in 24 hr format
-int yday = 0;
-bool currentDayOnScreenSet = false;
+// keeping track of today's date to update display's second line only on date change
+int currentDateOnDisplay_yday = 0;  // tm_yday Number of days elapsed since last January 1, between 0 and 365 inclusive.  https://sourceware.org/newlib/libc.html#Timefns
+bool currentDateOnDisplaySet = false;
 
-bool backlightOn = false;
-unsigned long backlightTurnedOnAtMs = 0;
-const unsigned long BACKLIGHT_TURNOFF_AFTER_MS = 20000;
+// Hardware Timer to tick every 1 second
+hw_timer_t *printLocalTimeTimer = NULL;
+
+bool runPrintLocalTimeFn = false;
+
+// Timer Interrupt Service Routine
+void IRAM_ATTR printLocalTimeISR() {
+  runPrintLocalTimeFn = true;
+}
 
 void setup(){
   Serial.begin(115200);
@@ -108,120 +114,131 @@ void setup(){
   lcd.init();
   // turn on LCD backlight
   turnBacklightOn();
-  lcd.noCursor();
-  
+
+  // init saved data in EEPROM
+ 	getOrSetDefaultEEPROMparams(false); //readOnly = false
+
+  // get current local time from Internet
   int attemptsWiFi = 0;
-  while(updateTimeFromInternet() || attemptsWiFi > 2) {
+  while(connectWiFiAndUpdateCurrentTimeFromInternet() || attemptsWiFi > 3) {
     attemptsWiFi++;
     Serial.println("Disconnecting and Reconnecting WiFi and attempting time update again.");
     delay(3000);
   }
 
-  // set default alarm time if it doesn't exist in memory
-  //init preference
- 	preferences.begin("myfile", false);
-
- 	alarmHour = preferences.getUInt("alarmHour", ALARM_HOUR_DEFAULT); // get alarmHour or if key doesn't exist set variable to ALARM_HOUR_DEFAULT
- 	Serial.print("Read alarmHour = ");
- 	Serial.println(alarmHour);
- 	
- 	alarmMin = preferences.getUInt("alarmMin", ALARM_MIN_DEFAULT); // get alarmMin or if key doesn't exist set variable to ALARM_MIN_DEFAULT
- 	Serial.print("Read alarmMin = ");
- 	Serial.println(alarmMin);
- 	
- 	alarmActive = preferences.getBool("alarmActive", ALARM_ACTIVE_DEFAULT); // get alarmMin or if key doesn't exist set variable to ALARM_MIN_DEFAULT
- 	Serial.print("Read alarmActive = ");
- 	Serial.println(alarmActive);
- 	
-  preferences.end();
-
-  //initialize buzzer pin
+  //initialize buzzer
   pinMode(BUZZER_PIN, OUTPUT);
   digitalWrite(BUZZER_PIN, LOW);
 
-  //initialize alarm off pin
+  //initialize button
   pinMode(BUTTON_PIN, INPUT);
 
-  //create a task that will be executed in the Task1code() function, with priority 1 and executed on core 0
-  xTaskCreatePinnedToCore(
-                    TimeAndLCDUpdateTask,   /* Task function. */
-                    "TimeAndLCDUpdateTask",     /* name of task. */
-                    10000,       /* Stack size of task */
-                    NULL,        /* parameter of the task */
-                    1,           /* priority of the task */
-                    &TaskCore0,      /* Task handle to keep track of created task */
-                    0);          /* pin task to core 0 */                  
-  delay(500);
-}
+  // initialize timer
+  printLocalTimeTimer = timerBegin(0, 80, true);  // using timer 0, prescaler 80 (1MHz as ESP32 is 80MHz), counting up (true)
+  timerAttachInterrupt(printLocalTimeTimer, &printLocalTimeISR, true);    //attach ISR to timer
+  timerAlarmWrite(printLocalTimeTimer, 1000000, true);      // set timer to trigger ISR every second, auto reload of timer after every trigger set to true
 
-int updateTimeFromInternet() {
-  int returnVal = 1;
-  // Connect to Wi-Fi
-  Serial.print("Connecting to ");
-  Serial.println(SSID);
-  WiFi.begin(SSID, PASSWORD);
-  int attempts = 1;
-  while (WiFi.status() != WL_CONNECTED) {
-    attempts++;
-    if(attempts > 5) {
-      Serial.println("Could not connect to WiFi!");
-      break;
-    }
-    delay(500);
-    Serial.print(".");
-  }
+  // Timer Enable
+  timerAlarmEnable(printLocalTimeTimer);
 
-  if(WiFi.status() == WL_CONNECTED) {
-    Serial.println("");
-    Serial.println("WiFi connected.");
-    delay(1000);
-
-    // Init and get the time
-    configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP_SERVER);
-    attempts = 1;
-    while(true) {
-      Serial.print("Update time from internet attempt ");
-      Serial.println(attempts);
-      returnVal = printLocalTime();
-      if(returnVal == 0) {
-        Serial.println("Update time from internet successful!");
-        break;
-      }
-      if(attempts > 10) {
-        Serial.println("Update time from internet Unsuccessful!");
-        break;
-      }
-      attempts++;
-      delay(1000);
-    }
-
-    //disconnect WiFi as it's no longer needed
-    WiFi.disconnect(true);
-    WiFi.mode(WIFI_OFF);
-    Serial.println("WiFi Disconnected.");
-  }
-  return returnVal;
+  //delay(500);
 }
 
 void loop(){
-  // Serial.print("loop() running on core ");
-  // Serial.print(xPortGetCoreID());
-
+  //print local time every second  
+  if(runPrintLocalTimeFn) {
+    runPrintLocalTimeFn = false;
+    printLocalTime();
+  }
+  
   // Activate Buzzer at Alarm Time
-  if(alarmActive && currentDayOnScreenSet) {
+  if(alarmActive && !buzzerON) {
     // check during first 5 seconds of alarm time
-    if(currentHr == alarmHour && currentMin == alarmMin && currentSec <= 5) {
+    if(currentTimeInfo.tm_hour == alarmHour && currentTimeInfo.tm_min == alarmMin && currentTimeInfo.tm_sec <= 5) {
+      // Timer Disable
+      timerAlarmDisable(printLocalTimeTimer);
+      //end settings mode if at all On
+      settingsMode = false;
       //start buzzer!
       buzzerON = true;
+      bool alarmEndByUser = false;
+      while(!alarmEndByUser) {
+        //display Alarm On screen with seconds user needs to press and hold button to end alarm
+        alarmOnScreen(ALARM_END_BUTTON_PRESS_AND_HOLD_SECONDS);
+        // activate buzzer if button is not pressed by user
+        if(!buttonActive()) {
+          unsigned long timeStartMs = millis();
+          // buzz for one interval or until button is pressed
+          while((millis() - timeStartMs < BUZZER_INTERVALS_MS) && !buttonActive()) {
+            digitalWrite(BUZZER_PIN, HIGH);
+            delayMicroseconds(BUZZER_TIMEPERIOD_US / 2);
+            digitalWrite(BUZZER_PIN, LOW);
+            delayMicroseconds(BUZZER_TIMEPERIOD_US / 2);
+          }
+          timeStartMs = millis();
+          // stay silent for one interval or until button is pressed
+          while((millis() - timeStartMs < BUZZER_INTERVALS_MS) && !buttonActive()) {
+            delay(1);
+          }
+        }
+        // if user presses button then start alarm end countdown!
+        if(buttonActive()) {
+          unsigned long buttonPressStartTimeMs = millis(); //note time of button press
+          int buttonPressSecondsCounter = ALARM_END_BUTTON_PRESS_AND_HOLD_SECONDS;
+          //while button is pressed, display seconds countdown
+          while(buttonActive() && !alarmEndByUser) {
+            // display countdown to alarm off
+            if(ALARM_END_BUTTON_PRESS_AND_HOLD_SECONDS - (millis() - buttonPressStartTimeMs) / 1000 < buttonPressSecondsCounter) {
+              buttonPressSecondsCounter--;
+              alarmOnScreen(buttonPressSecondsCounter);
+            }
+            //end alarm after holding button for ALARM_END_BUTTON_PRESS_AND_HOLD_SECONDS
+            if(millis() - buttonPressStartTimeMs > ALARM_END_BUTTON_PRESS_AND_HOLD_SECONDS * 1000) {
+              //good morning screen! :)
+              lcd.clear();
+              lcd.setCursor(0, 0);
+              lcd.print("Good Morning!");
+              for(int i = 0; i < 10; i++) {
+                if(i % 3 == 0) {
+                  lcd.setCursor(13, 0);
+                  lcd.print(":) ");
+                  lcd.setCursor(0, 1);
+                  lcd.print(":) :) :) :) :) :");
+                }
+                else if(i % 3 == 1) {
+                  lcd.setCursor(13, 0);
+                  lcd.print(" :)");
+                  lcd.setCursor(0, 1);
+                  lcd.print(" :) :) :) :) :) ");
+                }
+                else {
+                  lcd.setCursor(13, 0);
+                  lcd.print("  :");
+                  lcd.setCursor(0, 1);
+                  lcd.print(") :) :) :) :) :)");
+                }
+                delay(1000);
+              }
+              buzzerON = false;
+              alarmEndByUser = true;
+            }
+          }
+        }
+      }
+      // Alarm ended by user!
+      currentDateOnDisplaySet = false;  // to do lcd clear() once date is again printed
+      // Timer Enable
+      timerAlarmEnable(printLocalTimeTimer);
     }
   }
 
   //update time 1 hr after alarm
-  if(currentHr == alarmHour + 1 && currentMin == alarmMin && currentSec <= 5) {
-    updateTimeFromInternet();
+  if(currentTimeInfo.tm_hour == alarmHour + 1 && currentTimeInfo.tm_min == alarmMin && currentTimeInfo.tm_sec <= 5) {
+    connectWiFiAndUpdateCurrentTimeFromInternet();
     delay(5000);
   }
 
+  // turn off display backlight after BACKLIGHT_TURNOFF_AFTER_MS of being On
   if(backlightOn && millis() - backlightTurnedOnAtMs > BACKLIGHT_TURNOFF_AFTER_MS) {
     lcd.noBacklight();
     backlightOn = false;
@@ -326,6 +343,7 @@ void loop(){
 
   }
 
+  // serial inputs and processing for debugging and development
   if(Serial.available()) {
     turnBacklightOn();
     char input = Serial.read();
@@ -387,85 +405,53 @@ void loop(){
   }
 }
 
-//Task1code: blinks an LED every 1000 ms
-void TimeAndLCDUpdateTask( void * pvParameters ){
-  Serial.print("TimeAndLCDUpdateTask running on core ");
-  Serial.println(xPortGetCoreID());
+int connectWiFiAndUpdateCurrentTimeFromInternet() {
+  int returnVal = 1;
+  // Connect to Wi-Fi
+  Serial.print("Connecting to ");
+  Serial.println(SSID);
+  WiFi.begin(SSID, PASSWORD);
+  int attempts = 1;
+  while (WiFi.status() != WL_CONNECTED) {
+    attempts++;
+    if(attempts > 5) {
+      Serial.println("Could not connect to WiFi!");
+      break;
+    }
+    delay(500);
+    Serial.print(".");
+  }
 
-  for(;;) {
-    if(!settingsMode)
-    {
-      if(!buzzerON) {
-        printLocalTime();
-        delay(1000);
-        if(settingsMode)
-          settingsScreen();
+  if(WiFi.status() == WL_CONNECTED) {
+    Serial.println("");
+    Serial.println("WiFi connected.");
+    delay(1000);
+
+    // Init and get the time
+    configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP_SERVER);
+    attempts = 1;
+    while(true) {
+      Serial.print("Update time from internet attempt ");
+      Serial.println(attempts);
+      returnVal = printLocalTime();
+      if(returnVal == 0) {
+        Serial.println("Update time from internet successful!");
+        break;
       }
-      else {
-        alarmOnScreen(BUTTON_HOLD_SECONDS);
-        if(!buttonActive()) {
-          unsigned long timeStartMs = millis();
-          while((millis() - timeStartMs < BUZZER_INTERVALS_MS) && !buttonActive()) {
-            digitalWrite(BUZZER_PIN, HIGH);
-            delayMicroseconds(BUZZER_TIMEPERIOD_US / 2);
-            digitalWrite(BUZZER_PIN, LOW);
-            delayMicroseconds(BUZZER_TIMEPERIOD_US / 2);
-          }
-          timeStartMs = millis();
-          while((millis() - timeStartMs < BUZZER_INTERVALS_MS) && !buttonActive()) {
-            delay(1);
-          }
-        }
-        if(buttonActive()) {
-          unsigned long buttonPressStartTimeMs = millis(); //note time of button press
-          int buttonPressSecondsCounter = BUTTON_HOLD_SECONDS;
-          while(buttonActive()) {
-            //end alarm after holding button for BUTTON_HOLD_SECONDS
-            if(millis() - buttonPressStartTimeMs > BUTTON_HOLD_SECONDS * 1000) {
-              //good morning screen! :)
-              lcd.clear();
-              lcd.setCursor(0, 0);
-              lcd.print("Good Morning!");
-              for(int i = 0; i < 10; i++) {
-                if(i % 3 == 0) {
-                  lcd.setCursor(13, 0);
-                  lcd.print(":) ");
-                  lcd.setCursor(0, 1);
-                  lcd.print(":) :) :) :) :) :");
-                }
-                else if(i % 3 == 1) {
-                  lcd.setCursor(13, 0);
-                  lcd.print(" :)");
-                  lcd.setCursor(0, 1);
-                  lcd.print(" :) :) :) :) :) ");
-                }
-                else {
-                  lcd.setCursor(13, 0);
-                  lcd.print("  :");
-                  lcd.setCursor(0, 1);
-                  lcd.print(") :) :) :) :) :)");
-                }
-                delay(1000);
-              }
-              lcd.clear();
-              buzzerON = false;
-              break;
-            }
-            // display countdown to alarm off
-            if(BUTTON_HOLD_SECONDS - (millis() - buttonPressStartTimeMs) / 1000 < buttonPressSecondsCounter) {
-              buttonPressSecondsCounter--;
-              alarmOnScreen(buttonPressSecondsCounter);
-            }
-          }
-        }
+      if(attempts > 10) {
+        Serial.println("Update time from internet Unsuccessful!");
+        break;
       }
+      attempts++;
+      delay(1000);
     }
-    else {
-      currentDayOnScreenSet = false;  // to do lcd clear() once date is again printed
-      backlightTurnedOnAtMs = millis();   // keep backlight On
-      delay(10);
-    }
-  } 
+
+    //disconnect WiFi as it's no longer needed
+    WiFi.disconnect(true);
+    WiFi.mode(WIFI_OFF);
+    Serial.println("WiFi Disconnected.");
+  }
+  return returnVal;
 }
 
 bool buttonActive() {
@@ -548,7 +534,7 @@ void settingsScreen() {
 
 void alarmOnScreen(int countDown) {
   turnBacklightOn();
-  currentDayOnScreenSet = false;  // to do lcd clear() once date is again printed
+  currentDateOnDisplaySet = false;  // to do lcd clear() once date is again printed
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("WAKE-UP! ");
@@ -566,7 +552,7 @@ void alarmOnScreen(int countDown) {
 }
 
 int printLocalTime(){
-  if(!getLocalTime(&timeinfo)){
+  if(!getLocalTime(&currentTimeInfo)){
     Serial.println("Failed to obtain time");
     lcd.clear();
     lcd.setCursor(0, 0);
@@ -576,30 +562,30 @@ int printLocalTime(){
     return 1;
   }
 
-  currentHr = timeinfo.tm_hour;
-  currentMin = timeinfo.tm_min;
-  currentSec = timeinfo.tm_sec;
   // Serial.print("Time ");
-  // Serial.print(currentHr);
+  // Serial.print(currentTimeInfo.tm_hour);
   // Serial.print(":");
-  // Serial.print(currentMin);
+  // Serial.print(currentTimeInfo.tm_min);
   // Serial.print(":");
-  // Serial.println(currentSec);
-  // Serial.print("timeinfo.tm_yday ");
-  // Serial.print(timeinfo.tm_yday);
-  // Serial.print("yday ");
-  // Serial.print(yday);
-  // Serial.print("currentDayOnScreenSet ");
-  // Serial.println(currentDayOnScreenSet);
+  // Serial.println(currentTimeInfo.tm_sec);
+  // Serial.print("currentTimeInfo.tm_yday ");
+  // Serial.print(currentTimeInfo.tm_yday);
+  // Serial.print("currentDateOnDisplay_yday ");
+  // Serial.print(currentDateOnDisplay_yday);
+  // Serial.print("currentDateOnDisplaySet ");
+  // Serial.println(currentDateOnDisplaySet);
 
-  // not clearing lcd all the time
-  if(static_cast<int>(timeinfo.tm_yday) != yday)
-    currentDayOnScreenSet = false;
-  if(!currentDayOnScreenSet)
+  // clear LCD if today's date has changed
+  if(currentTimeInfo.tm_yday != currentDateOnDisplay_yday)
+    currentDateOnDisplaySet = false;
+
+  // clear LCD if today's date is not displayed on LCD
+  if(!currentDateOnDisplaySet)
     lcd.clear();
 
+  // lcd first line
   lcd.setCursor(0, 0);
-  lcd.print(&timeinfo, "%I:%M:%S%P ");
+  lcd.print(&currentTimeInfo, "%I:%M:%S%P ");
   if(alarmActive) {
     if(alarmHour < 10)
       lcd.print("0");
@@ -611,18 +597,20 @@ int printLocalTime(){
   }
   else
     lcd.print("A-OFF");
-  if(!currentDayOnScreenSet) {
+
+  // lcd second line -> process only if today's date is not displayed on display
+  if(!currentDateOnDisplaySet) {
     lcd.setCursor(0, 1);
-    lcd.print(&timeinfo, "%a, %b %d %Y");
-    yday = timeinfo.tm_yday;
-    currentDayOnScreenSet = true;
+    lcd.print(&currentTimeInfo, "%a, %b %d %Y");
+    currentDateOnDisplay_yday = currentTimeInfo.tm_yday;
+    currentDateOnDisplaySet = true;
   }
   return 0;
 }
 
 void setEEPROMparams() {
  	//init preference
- 	preferences.begin("myfile", false);
+ 	preferences.begin(EEPROM_DATA_KEY, false);
 
  	preferences.putUInt("alarmHour", alarmHour);
  	preferences.putUInt("alarmMin", alarmMin);
@@ -639,19 +627,26 @@ void setEEPROMparams() {
 }
 
 void getEEPROMparams() {
- 	preferences.begin("myfile", true);
+  getOrSetDefaultEEPROMparams(true);
+}
 
- 	alarmHour = preferences.getUInt("alarmHour", 0);
+void getOrSetDefaultEEPROMparams(bool readOnly) {
+  //init preference
+ 	preferences.begin(EEPROM_DATA_KEY, readOnly);
+
+ 	// set default alarm time if it doesn't exist in memory
+  alarmHour = preferences.getUInt("alarmHour", ALARM_HOUR_DEFAULT); // get alarmHour or if key doesn't exist set variable to ALARM_HOUR_DEFAULT
  	Serial.print("Read alarmHour = ");
  	Serial.println(alarmHour);
- 	
- 	alarmMin = preferences.getUInt("alarmMin", 0);
+
+ 	alarmMin = preferences.getUInt("alarmMin", ALARM_MIN_DEFAULT); // get alarmMin or if key doesn't exist set variable to ALARM_MIN_DEFAULT
  	Serial.print("Read alarmMin = ");
  	Serial.println(alarmMin);
- 	
- 	alarmActive = preferences.getBool("alarmActive", false);
+
+ 	alarmActive = preferences.getBool("alarmActive", ALARM_ACTIVE_DEFAULT); // get alarmMin or if key doesn't exist set variable to ALARM_MIN_DEFAULT
  	Serial.print("Read alarmActive = ");
  	Serial.println(alarmActive);
- 	
- 	preferences.end();
+
+  preferences.end();
+
 }
