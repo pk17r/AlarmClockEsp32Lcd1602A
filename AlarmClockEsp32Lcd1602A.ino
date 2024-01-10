@@ -7,6 +7,7 @@
   Microcontroller - ESP32
   Buzzer - Passive Buzzer - KSSG1203-42 - Rated Frequency 2048Hz, 3-5V, 35mA
   Display - LCD 1602A with PCF8574T I/O Expander - I2C Communication
+  Level Shifter - TXS0108E - to connect 5V LCD I2C to 3.3V ESP32 I2C as ESP32 pins are not 5V tolerant
   Button - 1x Tactile Button Pulled Up with a 10K resistor pull-up to 3.3V and a 100nF Decoupling Capacitor to ground
   MOSFET - 1x N7000 NPN MOSFET - Powers Buzzer with 5V and driven by ESP32 Buzzer Drive Pin to Gate
   LED - 1x 5mm LED that flashes along with Buzzer, driven by ESP32 Buzzer Drive Pin
@@ -104,7 +105,7 @@ const unsigned int ALARM_HOUR_DEFAULT = 6;
 const unsigned int ALARM_MIN_DEFAULT = 30;
 const bool ALARM_ACTIVE_DEFAULT = false;
 
-const int BUTTON_PIN = 27;
+const int BUTTON_PIN = 17;
 const int ALARM_END_BUTTON_PRESS_AND_HOLD_SECONDS = 25;
 const unsigned long BUZZER_INTERVALS_MS = 800;
 
