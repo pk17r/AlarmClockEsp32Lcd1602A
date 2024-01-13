@@ -8,6 +8,12 @@ void processSerialInput() {
   while(Serial.available())
     Serial.read();
   switch(input) {
+    case 'b':
+      if(!buzzerOn)
+        buzzer_enable();
+      else
+        buzzer_disable();
+      break;
     case 'w':
       welcomeScreen();
       delay(5000);

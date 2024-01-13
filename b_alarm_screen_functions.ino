@@ -7,10 +7,6 @@ const int BUTTON_PIN = 17;
 //PushButtonTapsAndPress(int buttonPin, bool activeLow, bool serialPrintTapPressTimes)
 PushButtonTapsAndPress pushBtn;
 
-const int BUZZER_PIN = 4;
-const int BUZZER_FREQUENCY = 2048;
-const unsigned long BUZZER_TIMEPERIOD_US = 1000000 / BUZZER_FREQUENCY;
-
 void buzzAlarmFn() {
   // end Set Alarm Page flag if at all On
   setAlarmPageActive = false;

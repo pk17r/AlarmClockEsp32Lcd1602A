@@ -27,7 +27,7 @@ void setup(){
   pushBtn.pushButtonSetup(BUTTON_PIN, true, false);
 
   timer_init();
-  timer_enable();
+  timer_enable(timeUpdateTimerPtr);
 }
 
 void loop(){
