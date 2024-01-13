@@ -1,7 +1,7 @@
 #include <PushButtonTapsAndPress.h>
 
 const int ALARM_END_BUTTON_PRESS_AND_HOLD_SECONDS = 25;
-const unsigned long BUZZER_INTERVALS_MS = 800;
+const unsigned long ALARM_MAX_ON_TIME_MS = 180*1000;
 
 const int BUTTON_PIN = 17;
 //PushButtonTapsAndPress(int buttonPin, bool activeLow, bool serialPrintTapPressTimes)
@@ -11,37 +11,21 @@ void buzzAlarmFn() {
   // end Set Alarm Page flag if at all On
   setAlarmPageActive = false;
   //start buzzer!
-  bool alarmEndByUser = false;
+  buzzer_enable();
+  bool alarmStopped = false, buzzerPausedByUser = false;
+  unsigned long alarmStartTimeMs = millis();
   int buttonPressSecondsCounter = ALARM_END_BUTTON_PRESS_AND_HOLD_SECONDS;
   alarmOnScreen(ALARM_END_BUTTON_PRESS_AND_HOLD_SECONDS);
-  while(!alarmEndByUser) {
-    // activate buzzer if button is not pressed by user
-    if(!pushBtn.buttonActive()) {
-      // if user lifts button press before alarm end then reset counter and re-display alarm-On screen
-      if(buttonPressSecondsCounter != ALARM_END_BUTTON_PRESS_AND_HOLD_SECONDS) {
-        // display Alarm On screen with seconds user needs to press and hold button to end alarm
-        buttonPressSecondsCounter = ALARM_END_BUTTON_PRESS_AND_HOLD_SECONDS;
-        alarmOnScreen(ALARM_END_BUTTON_PRESS_AND_HOLD_SECONDS);
-      }
-      unsigned long timeStartMs = millis();
-      // buzz for one interval or until button is pressed
-      while((millis() - timeStartMs < BUZZER_INTERVALS_MS) && !pushBtn.buttonActive()) {
-        digitalWrite(BUZZER_PIN, HIGH);
-        delayMicroseconds(BUZZER_TIMEPERIOD_US / 2);
-        digitalWrite(BUZZER_PIN, LOW);
-        delayMicroseconds(BUZZER_TIMEPERIOD_US / 2);
-      }
-      timeStartMs = millis();
-      // stay silent for one interval or until button is pressed
-      while((millis() - timeStartMs < BUZZER_INTERVALS_MS) && !pushBtn.buttonActive()) {
-        delay(1);
-      }
-    }
-    // if user presses button then start alarm end countdown!
+  while(!alarmStopped) {
+    // if user presses button then pauze buzzer and start alarm end countdown!
     if(pushBtn.buttonActive()) {
+      if(!buzzerPausedByUser) {
+        buzzer_disable();
+        buzzerPausedByUser = true;
+      }
       unsigned long buttonPressStartTimeMs = millis(); //note time of button press
       // while button is pressed, display seconds countdown
-      while(pushBtn.buttonActive() && !alarmEndByUser) {
+      while(pushBtn.buttonActive() && !alarmStopped) {
         // display countdown to alarm off
         if(ALARM_END_BUTTON_PRESS_AND_HOLD_SECONDS - (millis() - buttonPressStartTimeMs) / 1000 < buttonPressSecondsCounter) {
           buttonPressSecondsCounter--;
@@ -49,14 +33,31 @@ void buzzAlarmFn() {
         }
         // end alarm after holding button for ALARM_END_BUTTON_PRESS_AND_HOLD_SECONDS
         if(millis() - buttonPressStartTimeMs > ALARM_END_BUTTON_PRESS_AND_HOLD_SECONDS * 1000) {
+          alarmStopped = true;
           // good morning screen! :)
           goodMorningScreen();
-          alarmEndByUser = true;
         }
       }
     }
+    // activate buzzer if button is not pressed by user
+    if(!pushBtn.buttonActive() && !alarmStopped) {
+      if(buzzerPausedByUser) {
+        buzzer_enable();
+        buzzerPausedByUser = false;
+      }
+      // if user lifts button press before alarm end then reset counter and re-display alarm-On screen
+      if(buttonPressSecondsCounter != ALARM_END_BUTTON_PRESS_AND_HOLD_SECONDS) {
+        // display Alarm On screen with seconds user needs to press and hold button to end alarm
+        buttonPressSecondsCounter = ALARM_END_BUTTON_PRESS_AND_HOLD_SECONDS;
+        alarmOnScreen(ALARM_END_BUTTON_PRESS_AND_HOLD_SECONDS);
+      }
+    }
+    // if user did not stop alarm within ALARM_MAX_ON_TIME_MS, make sure to stop buzzer
+    if(millis() - alarmStartTimeMs > ALARM_MAX_ON_TIME_MS) {
+      buzzer_disable();
+      alarmStopped = true;
+    }
   }
-  // Alarm ended by user!
   currentDateOnDisplaySet = false;  // to print date on display again, once time is again printed
 }
 

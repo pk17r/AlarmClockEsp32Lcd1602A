@@ -87,7 +87,7 @@ void welcomeScreen() {
   currentDateOnDisplaySet = false;  // to print date on display again, once time is again printed
   lcd.clear();
   lcd.setCursor(0, 0);
-  lcd.print(" "); lcd.printByte(heartId); lcd.print(" Long Press "); lcd.printByte(smileyId); lcd.print(" ");
+  lcd.print(" "); lcd.printByte(heartId); lcd.print(" Long Press "); lcd.printByte(heartId); lcd.print(" ");
   lcd.setCursor(0, 1);
   lcd.printByte(bellId); lcd.print(" "); lcd.printByte(bellId); lcd.print(" "); lcd.printByte(bellId); lcd.print(" Alarm  "); lcd.printByte(bellId); lcd.print(" "); lcd.printByte(bellId);
 }

@@ -10,8 +10,6 @@ const int BUZZER_PIN = 4;
 const int BUZZER_FREQUENCY = 2048;
 const unsigned long BEEP_LENGTH_MS = 800;
 
-const unsigned long BUZZER_TIMEPERIOD_US = 1000000 / BUZZER_FREQUENCY;
-
 bool buzzerOn = false;
 bool _buzzerSquareWaveToggle = false;
 bool _beepToggle = false;

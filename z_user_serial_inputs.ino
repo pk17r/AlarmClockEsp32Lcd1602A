@@ -16,11 +16,11 @@ void processSerialInput() {
       break;
     case 'w':
       welcomeScreen();
-      delay(5000);
+      delay(10000);
       break;
     case 'a':
       alarmOnScreen(ALARM_END_BUTTON_PRESS_AND_HOLD_SECONDS);
-      delay(5000);
+      delay(10000);
       break;
     case 'g':
       goodMorningScreen();
