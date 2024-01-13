@@ -13,7 +13,7 @@ const int LCD_COLUMNS = 16;
 const int LCD_ROWS = 2;
 const unsigned long BACKLIGHT_TURNOFF_AFTER_MS = 60*1000;
 
-// special lcd characters
+// special lcd characters -> only 0-7 allowed
 uint8_t bell[8]  = {0x4,0xe,0xe,0xe,0x1f,0x0,0x4};
 uint8_t bellId = 0x00;
 uint8_t heart[8] = {0x0,0xa,0x1f,0x1f,0xe,0x4,0x0};
@@ -22,8 +22,10 @@ uint8_t duck[8]  = {0x0,0xc,0x1d,0xf,0xf,0x6,0x0};
 uint8_t duckId = 0x02;
 uint8_t check[8] = {0x0,0x1,0x3,0x16,0x1c,0x8,0x0};
 uint8_t checkId = 0x03;
-uint8_t cross[8] = {0x0,0x1b,0xe,0x4,0xe,0x1b,0x0};
-uint8_t crossId = 0x04;
+// uint8_t cross[8] = {0x0,0x1b,0xe,0x4,0xe,0x1b,0x0};
+// uint8_t crossId = 0x04;
+uint8_t rightBigArrow[8] = {  0x08,  0x04,  0x02,  0x1F,  0x02,  0x04,  0x08,  0x00};
+uint8_t rightBigArrowId = 0x04;
 uint8_t retArrow[8] = {	0x1,0x1,0x5,0x9,0x1f,0x8,0x4};
 uint8_t retArrowId = 0x05;
 // characters created using https://maxpromer.github.io/LCD-Character-Creator/
@@ -70,10 +72,11 @@ void lcd_init() {
   //lcd.createChar(duckId, duck);
   //lcd.createChar(checkId, check);
   //lcd.createChar(crossId, cross);
+  lcd.createChar(rightBigArrowId, rightBigArrow);
   lcd.createChar(retArrowId, retArrow);
   lcd.createChar(smileyId, smiley);
   lcd.createChar(allWhiteId, allWhite);
-
+  
   //display welcome screen
   welcomeScreen();
 

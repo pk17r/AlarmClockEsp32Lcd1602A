@@ -114,7 +114,7 @@ void setAlarmPage() {
   lcd.setCursor(LCD_COLUMNS - 3, LCD_ROWS - 1);
   lcd.printByte(rightArrowId);
   lcd.setCursor(LCD_COLUMNS - 2, LCD_ROWS - 1);
-  lcd.printByte(leftArrowId);
+  lcd.printByte(rightBigArrowId);
   lcd.setCursor(LCD_COLUMNS - 1, LCD_ROWS - 1);
   lcd.printByte(retArrowId);
 }
