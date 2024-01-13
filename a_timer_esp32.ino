@@ -21,7 +21,7 @@ void timer_init() {
   timerAttachInterrupt(timeUpdateTimer, &timeUpdateISR, true);    //attach ISR to timer
   set_timer_frequency(SECONDS_FREQUENCY);
 
-  Serial.print("Timer setup successful!");
+  Serial.println("Timer setup successful!");
 }
 
 void timer_enable() {
