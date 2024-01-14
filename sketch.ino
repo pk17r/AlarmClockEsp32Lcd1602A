@@ -2,13 +2,13 @@
   Arduino's Setup and Lopp Functions, buzzAlarmFn()
 */
 
-#include <PushButtonTapsAndPress.h>
+#include <PushButtonTaps.h>
 
 const int ALARM_END_BUTTON_PRESS_AND_HOLD_SECONDS = 25;
 const unsigned long ALARM_MAX_ON_TIME_MS = 180*1000;
 
 const int BUTTON_PIN = 17;
-PushButtonTapsAndPress pushBtn;
+PushButtonTaps pushBtn;
 
 // function declerations
 void processSetAlarmPageUserInput(byte buttonUserInput);

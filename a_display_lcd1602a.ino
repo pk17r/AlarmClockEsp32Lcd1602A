@@ -103,7 +103,7 @@ void lcd_init() {
   //display welcome screen
   welcomeScreen();
 
-  Serial.print(F("LCD 1602A setup successful!"));
+  Serial.println(F("LCD 1602A setup successful!"));
 }
 
 void welcomeScreen() {
