@@ -1,3 +1,6 @@
+/*
+  Serial inputs from user
+*/
 void serial_init() {
   Serial.begin(115200);
 }
@@ -29,7 +32,7 @@ void processSerialInput() {
       getEEPROMparams();
       break;
     case 's':
-      Serial.println("Enter new alarm Hr ");
+      Serial.println(F("Enter new alarm Hr "));
       while(Serial.available() == 0) {
         delay(1);
       };
@@ -39,7 +42,7 @@ void processSerialInput() {
           Serial.read();
       }
       Serial.println(alarmHour);
-      Serial.println("Enter new alarm Min ");
+      Serial.println(F("Enter new alarm Min "));
       while(Serial.available() == 0) {
         delay(1);
       };
@@ -49,7 +52,7 @@ void processSerialInput() {
           Serial.read();
       }
       Serial.println(alarmMin);
-      Serial.println("Enter >0 to activate alarm ");
+      Serial.println(F("Enter >0 to activate alarm "));
       while(Serial.available() == 0) {
         delay(1);
       };

@@ -1,10 +1,27 @@
-void processPushButtonUserInput(ButtonTapType buttonUserInput);
+/*
+  Arduino's Setup and Lopp Functions
+  buzzAlarmFn()
+*/
+#include <PushButtonTapsAndPress.h>
 
+const int ALARM_END_BUTTON_PRESS_AND_HOLD_SECONDS = 25;
+const unsigned long ALARM_MAX_ON_TIME_MS = 180*1000;
+
+const int BUTTON_PIN = 17;
+PushButtonTapsAndPress pushBtn;
+
+// function declerations
+void processSetAlarmPageUserInput(byte buttonUserInput);
+
+/*
+  The Arduino setup function
+*/
 void setup(){
   serial_init();
-  
-  Serial.print("setup() running on core ");
-  Serial.println(xPortGetCoreID());
+
+  // ESP32 check program running core
+  // Serial.print(F("setup() running on core "));
+  // Serial.println(xPortGetCoreID());
 
   // lcd 1602A init
   lcd_init();
@@ -30,6 +47,9 @@ void setup(){
   timer_enable(timeUpdateTimerPtr);
 }
 
+/*
+  The Arduino loop function
+*/
 void loop(){
   // Activate Buzzer at Alarm Time
   if(alarmActive) {
@@ -61,15 +81,79 @@ void loop(){
   }
 
   // check for button press user input
-  ButtonTapType buttonUserInput = pushBtn.checkButtonStatus();
-  if(buttonUserInput != ButtonTapType::noTap)
+  byte buttonUserInput = pushBtn.checkButtonStatus();
+  if(buttonUserInput)
     if(!backlightOn)
       turnBacklightOn();
     else
-      processPushButtonUserInput(buttonUserInput);
+      processSetAlarmPageUserInput(buttonUserInput);
 
   // serial inputs and processing for debugging and development
   if(Serial.available()) {
     processSerialInput();
   }
+}
+
+/*
+  Function that starts buzzer and Alarm Screen
+  It wait for user to press button to pause buzzer
+  User needs to continue to press and hold button for
+  ALARM_END_BUTTON_PRESS_AND_HOLD_SECONDS to end alarm.
+  If user stops pressing button before alarm end, it will
+  restart buzzer and the alarm end counter.
+  If user does not end alarm by ALARM_MAX_ON_TIME_MS milliseconds,
+  it will end alarm on its own.
+*/
+void buzzAlarmFn() {
+  // end Set Alarm Page flag if at all On
+  setAlarmPageActive = false;
+  //start buzzer!
+  buzzer_enable();
+  bool alarmStopped = false, buzzerPausedByUser = false;
+  unsigned long alarmStartTimeMs = millis();
+  int buttonPressSecondsCounter = ALARM_END_BUTTON_PRESS_AND_HOLD_SECONDS;
+  alarmOnScreen(ALARM_END_BUTTON_PRESS_AND_HOLD_SECONDS);
+  while(!alarmStopped) {
+    // if user presses button then pauze buzzer and start alarm end countdown!
+    if(pushBtn.buttonActiveDebounced()) {
+      if(!buzzerPausedByUser) {
+        buzzer_disable();
+        buzzerPausedByUser = true;
+      }
+      unsigned long buttonPressStartTimeMs = millis(); //note time of button press
+      // while button is pressed, display seconds countdown
+      while(pushBtn.buttonActiveDebounced() && !alarmStopped) {
+        // display countdown to alarm off
+        if(ALARM_END_BUTTON_PRESS_AND_HOLD_SECONDS - (millis() - buttonPressStartTimeMs) / 1000 < buttonPressSecondsCounter) {
+          buttonPressSecondsCounter--;
+          alarmOnScreen(buttonPressSecondsCounter);
+        }
+        // end alarm after holding button for ALARM_END_BUTTON_PRESS_AND_HOLD_SECONDS
+        if(millis() - buttonPressStartTimeMs > ALARM_END_BUTTON_PRESS_AND_HOLD_SECONDS * 1000) {
+          alarmStopped = true;
+          // good morning screen! :)
+          goodMorningScreen();
+        }
+      }
+    }
+    // activate buzzer if button is not pressed by user
+    if(!pushBtn.buttonActiveDebounced() && !alarmStopped) {
+      if(buzzerPausedByUser) {
+        buzzer_enable();
+        buzzerPausedByUser = false;
+      }
+      // if user lifts button press before alarm end then reset counter and re-display alarm-On screen
+      if(buttonPressSecondsCounter != ALARM_END_BUTTON_PRESS_AND_HOLD_SECONDS) {
+        // display Alarm On screen with seconds user needs to press and hold button to end alarm
+        buttonPressSecondsCounter = ALARM_END_BUTTON_PRESS_AND_HOLD_SECONDS;
+        alarmOnScreen(ALARM_END_BUTTON_PRESS_AND_HOLD_SECONDS);
+      }
+    }
+    // if user did not stop alarm within ALARM_MAX_ON_TIME_MS, make sure to stop buzzer
+    if(millis() - alarmStartTimeMs > ALARM_MAX_ON_TIME_MS) {
+      buzzer_disable();
+      alarmStopped = true;
+    }
+  }
+  currentDateOnDisplaySet = false;  // to print date on display again, once time is again printed
 }

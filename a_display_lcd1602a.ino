@@ -1,3 +1,6 @@
+/*
+  LCD 1602A with PCF8574T I/O Expander - I2C Communication
+*/
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 
@@ -13,7 +16,7 @@ const int LCD_COLUMNS = 16;
 const int LCD_ROWS = 2;
 const unsigned long BACKLIGHT_TURNOFF_AFTER_MS = 60*1000;
 
-// special lcd characters -> only 0-7 allowed
+// special lcd characters -> we only have 8 locations 0-7
 uint8_t bell[8]  = {0x4,0xe,0xe,0xe,0x1f,0x0,0x4};
 uint8_t bellId = 0x00;
 uint8_t heart[8] = {0x0,0xa,0x1f,0x1f,0xe,0x4,0x0};
@@ -26,8 +29,8 @@ uint8_t checkId = 0x03;
 // uint8_t crossId = 0x04;
 uint8_t rightBigArrow[8] = {  0x08,  0x04,  0x02,  0x1F,  0x02,  0x04,  0x08,  0x00};
 uint8_t rightBigArrowId = 0x04;
-uint8_t retArrow[8] = {	0x1,0x1,0x5,0x9,0x1f,0x8,0x4};
-uint8_t retArrowId = 0x05;
+uint8_t returnArrow[8] = {	0x1,0x1,0x5,0x9,0x1f,0x8,0x4};
+uint8_t returnArrowId = 0x05;
 // characters created using https://maxpromer.github.io/LCD-Character-Creator/
 uint8_t smiley[8]  = {0x02,  0x01,  0x09,  0x01,  0x01,  0x09,  0x01,  0x02};
 uint8_t smileyId = 0x06;
@@ -39,6 +42,25 @@ uint8_t leftArrowId = 0x7F;
 // set LCD address, number of columns and rows
 // if you don't know your display address, run an I2C scanner sketch
 LiquidCrystal_I2C lcd(LCD_ADDRESS, LCD_COLUMNS, LCD_ROWS);
+
+// display characters words
+const char* char_colon = ":";
+const char* char_zero = "0";
+const char* char_space = " ";
+const char* char_s = "s";
+const char* word_ALARM = "ALARM";
+const char* word_Alarm = "Alarm";
+const char* word_A_OFF = "A-OFF";
+const char* word_Hour = "Hour";
+const char* word_Min = "Min";
+const char* word_ON = "ON";
+const char* word_OFF = "OFF";
+const char* word_Set = "Set";
+const char* word_SET = "SET";
+const char* word_Good_Morning = " Good Morning!";
+const char* word_Wake_Up = " WAKE-UP! ";
+const char* word_Press_Button = "Press Button ";
+const char* word_Long_Press = " Long Press ";
 
 // LCD VARIABLES
 bool backlightOn = false;
@@ -58,7 +80,7 @@ const bool ALARM_ACTIVE_DEFAULT = false;
 
 // Set Alarm Page variables
 bool setAlarmPageActive = false; // to set alarm
-int setAlarmPageCounter = 0; // 0 - hr, 1 - min, 2 - alarm active
+int setAlarmPageNumber = 0; // 0 - set hr, 1 - set min, 2 - set alarm active/inactive
 int setValue = 0;
 
 void lcd_init() {
@@ -73,31 +95,31 @@ void lcd_init() {
   //lcd.createChar(checkId, check);
   //lcd.createChar(crossId, cross);
   lcd.createChar(rightBigArrowId, rightBigArrow);
-  lcd.createChar(retArrowId, retArrow);
+  lcd.createChar(returnArrowId, returnArrow);
   lcd.createChar(smileyId, smiley);
   lcd.createChar(allWhiteId, allWhite);
   
   //display welcome screen
   welcomeScreen();
 
-  Serial.print("LCD 1602A setup successful!");
+  Serial.print(F("LCD 1602A setup successful!"));
 }
 
 void welcomeScreen() {
   currentDateOnDisplaySet = false;  // to print date on display again, once time is again printed
   lcd.clear();
   lcd.setCursor(0, 0);
-  lcd.print(" "); lcd.printByte(heartId); lcd.print(" Long Press "); lcd.printByte(heartId); lcd.print(" ");
+  lcd.print(char_space); lcd.printByte(heartId); lcd.print(word_Long_Press); lcd.printByte(smileyId); lcd.print(char_space);
   lcd.setCursor(0, 1);
-  lcd.printByte(bellId); lcd.print(" "); lcd.printByte(bellId); lcd.print(" "); lcd.printByte(bellId); lcd.print(" Alarm  "); lcd.printByte(bellId); lcd.print(" "); lcd.printByte(bellId);
+  lcd.printByte(bellId); lcd.print(char_space); lcd.printByte(bellId); lcd.print(char_space); lcd.printByte(bellId); lcd.print(char_space); lcd.print(word_Alarm); lcd.print(char_space); lcd.print(char_space); lcd.printByte(bellId); lcd.print(char_space); lcd.printByte(bellId);
 }
 
 void failedToObtainTimeScreen() {
   lcd.clear();
   lcd.setCursor(0, 0);
-  lcd.print("Failed to obtain");
+  lcd.print(F("Failed to obtain"));
   lcd.setCursor(0, 1);
-  lcd.print("time!");
+  lcd.print(F("time!"));
 }
 
 void turnBacklightOn() {
