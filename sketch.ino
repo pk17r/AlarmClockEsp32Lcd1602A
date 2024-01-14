@@ -24,7 +24,7 @@ void setup(){
   digitalWrite(BUZZER_PIN, LOW);
 
   // initialize push button
-  pushBtn.pushButtonSetup(BUTTON_PIN, true, false);
+  pushBtn.setButtonPin(BUTTON_PIN);
 
   timer_init();
   timer_enable(timeUpdateTimerPtr);
@@ -62,11 +62,11 @@ void loop(){
 
   // check for button press user input
   ButtonTapType buttonUserInput = pushBtn.checkButtonStatus();
-  if(buttonUserInput != ButtonTapType::noTap && !backlightOn)
-    turnBacklightOn();
-  else if(buttonUserInput != ButtonTapType::noTap)
-    processPushButtonUserInput(buttonUserInput);
-  
+  if(buttonUserInput != ButtonTapType::noTap)
+    if(!backlightOn)
+      turnBacklightOn();
+    else
+      processPushButtonUserInput(buttonUserInput);
 
   // serial inputs and processing for debugging and development
   if(Serial.available()) {

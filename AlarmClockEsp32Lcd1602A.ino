@@ -18,6 +18,14 @@
   
   The above copyright notice and this permission notice shall be included in all
   copies or substantial portions of the Software.
+
+  Features:
+  - remembers set alarm time on reboot
+  - drives a 90dB passive buzzer at rated frequency using timer of ESP32 and a mosfet at 5V
+  - updates displayed time every second
+  - uses only 1 button to set/enable/disable alarm and end active alarm
+  - when alarm goes off, user needs to press and hold button for 25 seconds to end alarm, otherwise it will start buzzing again
+  - updates time using WiFi from NTC server at start of microcontroller and everyday 1 hr after the set alarm time
   
 */
 

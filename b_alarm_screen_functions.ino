@@ -4,7 +4,6 @@ const int ALARM_END_BUTTON_PRESS_AND_HOLD_SECONDS = 25;
 const unsigned long ALARM_MAX_ON_TIME_MS = 180*1000;
 
 const int BUTTON_PIN = 17;
-//PushButtonTapsAndPress(int buttonPin, bool activeLow, bool serialPrintTapPressTimes)
 PushButtonTapsAndPress pushBtn;
 
 void buzzAlarmFn() {
@@ -18,14 +17,14 @@ void buzzAlarmFn() {
   alarmOnScreen(ALARM_END_BUTTON_PRESS_AND_HOLD_SECONDS);
   while(!alarmStopped) {
     // if user presses button then pauze buzzer and start alarm end countdown!
-    if(pushBtn.buttonActive()) {
+    if(pushBtn.buttonActiveDebounced()) {
       if(!buzzerPausedByUser) {
         buzzer_disable();
         buzzerPausedByUser = true;
       }
       unsigned long buttonPressStartTimeMs = millis(); //note time of button press
       // while button is pressed, display seconds countdown
-      while(pushBtn.buttonActive() && !alarmStopped) {
+      while(pushBtn.buttonActiveDebounced() && !alarmStopped) {
         // display countdown to alarm off
         if(ALARM_END_BUTTON_PRESS_AND_HOLD_SECONDS - (millis() - buttonPressStartTimeMs) / 1000 < buttonPressSecondsCounter) {
           buttonPressSecondsCounter--;
@@ -40,7 +39,7 @@ void buzzAlarmFn() {
       }
     }
     // activate buzzer if button is not pressed by user
-    if(!pushBtn.buttonActive() && !alarmStopped) {
+    if(!pushBtn.buttonActiveDebounced() && !alarmStopped) {
       if(buzzerPausedByUser) {
         buzzer_enable();
         buzzerPausedByUser = false;
