@@ -1,6 +1,7 @@
 /*
   Serial inputs from user
 */
+
 void serial_init() {
   Serial.begin(115200);
 }

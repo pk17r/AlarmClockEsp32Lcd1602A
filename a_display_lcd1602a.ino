@@ -1,6 +1,7 @@
 /*
   LCD 1602A with PCF8574T I/O Expander - I2C Communication
 */
+
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 

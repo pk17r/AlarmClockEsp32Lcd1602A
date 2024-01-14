@@ -1,6 +1,10 @@
 /*
   LCD 1602A with PCF8574T I/O Expander - I2C Communication
 */
+
+/*
+  Display current local time and date on display
+*/
 void displayLocalTimeAndDate(){
   // if today's date has changed then update both display lines
   if(currentTimeInfo.tm_yday != currentDateOnDisplay_yday)
@@ -78,7 +82,6 @@ void goodMorningScreen() {
     delay(1000);
   }
 }
-
 
 /*
   Set Alarm Page

@@ -1,6 +1,7 @@
 /*
   ESP32 Hardware Timers
 */
+
 // Hardware Timer
 hw_timer_t *timeUpdateTimerPtr = NULL;
 hw_timer_t *passiveBuzzerTimerPtr = NULL;

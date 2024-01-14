@@ -25,7 +25,18 @@
   - drives a 90dB passive buzzer at rated frequency using timer of ESP32 and a mosfet at 5V
   - updates displayed time every second, shows today's day and date
 
-## File descriptions:
+## Requires:
+  Add a file named "secrets_file.h" with your WiFi SSID and Password in the following format:
+  - #define WIFI_SSID         "ssid"
+  - #define WIFI_PASSWORD     "password"
+
+##  File descriptions:
+  - LongPressAlarmClock.ino - this empty file. File names govern Arduino's file pre-processor order
   - sketch.ino - contains Arduino's setup and loop functions as well buzz alarm function
-  - a_display_lcd1602a.ino - contains LCD 1602A display initialization and main functions
-  - b_display_lcd1602a_dependent_functions -
+  - a_display_lcd1602a.ino - main display file
+  - a_preferences_esp32_nvs_memory.ino - ESP32's NVS memory functions
+  - a_timer_esp32.ino - timer file
+  - a_wifi_and_time_info.ino - wifi and time info file
+  - b_display_lcd1602a_dependent_functions.ino - display functions that depend upon objects from other files
+  - z_user_serial_inputs.ino - serial inputs files
+  - secrets_file.h - wifi ssid and password file

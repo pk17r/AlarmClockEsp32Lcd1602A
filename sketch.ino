@@ -1,7 +1,7 @@
 /*
-  Arduino's Setup and Lopp Functions
-  buzzAlarmFn()
+  Arduino's Setup and Lopp Functions, buzzAlarmFn()
 */
+
 #include <PushButtonTapsAndPress.h>
 
 const int ALARM_END_BUTTON_PRESS_AND_HOLD_SECONDS = 25;
