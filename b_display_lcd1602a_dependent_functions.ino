@@ -132,7 +132,7 @@ void setAlarmPage() {
     if(setValue)
       lcd.print(word_ON);
     else
-      lcd.print(word_ON);
+      lcd.print(word_OFF);
     break;
   }
   lcd.setCursor(LCD_COLUMNS - 3, LCD_ROWS - 1);
@@ -163,12 +163,12 @@ void processSetAlarmPageUserInput(byte buttonUserInput) {
       lcd.setCursor(LCD_COLUMNS - 3 + (buttonUserInput - 1), LCD_ROWS - 1);
       lcd.printByte(allWhiteId);
       switch(setAlarmPageNumber) {
-      case 0: // set hour
+      case 0: // set hour - increment 1 on single tap and 4 on double tap
         setValue += 1 + (buttonUserInput - 1) * 3;
         if(setValue > 23) setValue -= 24;
         break;
-      case 1: // set minutes
-        setValue += 5 + (buttonUserInput - 1) * 10;
+      case 1: // set minutes - increment 1 on single tap and 10 on double tap
+        setValue += 1 + (buttonUserInput - 1) * 9;
         if(setValue > 59) setValue -= 60;
         break;
       case 2: // set alarm active or inactive

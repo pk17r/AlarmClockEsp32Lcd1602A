@@ -2,6 +2,17 @@
   Powerful Alarm Clock with Long Press Alarm End Button to actually make you Wake Up! :)
   
   Prashant Kumar
+
+  Single button operation. Auto update of time everyday using WiFi.
+  Once alarm starts, user needs to press and hold its button for 25 seconds to end alarm.
+  Alarm pauses once user presses button and shows a 25 seconds countdown. If user leaves the button
+  before countdown end, the countdown resets and alarm starts again. A 3 minute max alarm time is there
+  if alarm is not deactivated by user. To make single button operation possible, a push button arduino
+  library has been made, named PushButtonTaps. It classifies push button presses as No Tap, Single Tap,
+  Double Tap and Long Press.
+
+  Video of operation: https://youtu.be/btpxy9vB6y4
+  Github: https://github.com/pk17r/LongPressAlarm
   
   Components Required:
   Microcontroller - ESP32
