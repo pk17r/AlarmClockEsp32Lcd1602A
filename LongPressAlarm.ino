@@ -1,5 +1,6 @@
 /*
-  Powerful Alarm Clock with Long Press Alarm End Button to actually make you Wake Up! :)
+  Powerful Alarm Clock with Long Press Alarm End Button to actually make you Wake Up!
+  No more Snoozes!!
   
   Prashant Kumar
 
@@ -11,7 +12,7 @@
   library has been made, named PushButtonTaps. It classifies push button presses as No Tap, Single Tap,
   Double Tap and Long Press.
 
-  Video of operation: https://youtu.be/btpxy9vB6y4
+  Video: https://youtu.be/btpxy9vB6y4
   Github: https://github.com/pk17r/LongPressAlarm
   
   Components Required:
