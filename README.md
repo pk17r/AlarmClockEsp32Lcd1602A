@@ -1,5 +1,16 @@
-# Powerful Alarm Clock with Long Press Alarm End Button to actually make you Wake Up! :)
-  
+![Alt text](LongPressAlarm-Schematics-Pic.JPG?raw=true "Title")
+## Powerful Alarm Clock with Long Press Alarm End Button to actually make you Wake Up!
+  Video: https://youtu.be/btpxy9vB6y4
+  Github: https://github.com/pk17r/LongPressAlarm
+
+## Features:
+  - requires user to press and hold button for 25 seconds to end alarm, otherwise it will restart buzzing
+  - one button operation - uses only 1 button to set/enable/disable alarm and end active alarm
+  - remembers set alarm time on reboot
+  - updates time using WiFi from NTC server at start of microcontroller and everyday 1 hr after the set alarm time
+  - drives a 90dB passive buzzer at rated frequency using timer of ESP32 and a mosfet at 5V
+  - updates displayed time every second, shows today's day and date
+
 ### Components Required:
    - Microcontroller - ESP32
    - Buzzer - Passive Buzzer - KSSG1203-42 - 90dB at Rated Frequency 2048Hz, 3-5V, 35mA
@@ -16,14 +27,6 @@
 
   The above copyright notice and this permission notice shall be included in all
   copies or substantial portions of the Software.
-
-## Features:
-  - requires user to press and hold button for 25 seconds to end alarm, otherwise it will restart buzzing
-  - one button operation - uses only 1 button to set/enable/disable alarm and end active alarm
-  - remembers set alarm time on reboot
-  - updates time using WiFi from NTC server at start of microcontroller and everyday 1 hr after the set alarm time
-  - drives a 90dB passive buzzer at rated frequency using timer of ESP32 and a mosfet at 5V
-  - updates displayed time every second, shows today's day and date
 
 ## Requires:
   Add a file named "secrets_file.h" with your WiFi SSID and Password in the following format:
