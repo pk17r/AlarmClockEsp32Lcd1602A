@@ -11,6 +11,10 @@
   - drives a 90dB passive buzzer at rated frequency using timer of ESP32 and a mosfet at 5V
   - updates displayed time every second, shows today's day and date
 
+To make single button operation possible, a push button arduino library has been made, named
+PushButtonTaps https://github.com/pk17r/PushButtonTaps
+It classifies push button presses as No Tap, Single Tap, Double Tap and Long Press.
+
 ### Components Required:
    - Microcontroller - ESP32
    - Buzzer - Passive Buzzer - KSSG1203-42 - 90dB at Rated Frequency 2048Hz, 3-5V, 35mA
