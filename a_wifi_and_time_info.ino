@@ -72,6 +72,12 @@ bool connectWiFiAndUpdateCurrentTimeFromInternet() {
     WiFi.disconnect(true);
     WiFi.mode(WIFI_OFF);
     Serial.println(F("WiFi Disconnected."));
+    Serial.print(F("WiFi setSleep : "));
+    Serial.println(WiFi.setSleep(WIFI_PS_MIN_MODEM));
+    Serial.print(F("WiFi getSleep : "));
+    Serial.println(WiFi.getSleep());
+    Serial.print(F("Bluetooth Stopped : "));
+    Serial.println(btStop());
   }
   return success;
 }

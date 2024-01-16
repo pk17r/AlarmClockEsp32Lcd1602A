@@ -15,7 +15,7 @@
 const int LCD_ADDRESS = 0x27;
 const int LCD_COLUMNS = 16;
 const int LCD_ROWS = 2;
-const unsigned long BACKLIGHT_TURNOFF_AFTER_MS = 60*1000;
+const unsigned long BACKLIGHT_TURNOFF_AFTER_MS = 10*1000;
 
 // special lcd characters -> we only have 8 locations 0-7
 uint8_t bell[8]  = {0x4,0xe,0xe,0xe,0x1f,0x0,0x4};

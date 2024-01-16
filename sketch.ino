@@ -13,6 +13,9 @@ PushButtonTaps pushBtn;
 // function declerations
 void processSetAlarmPageUserInput(byte buttonUserInput);
 
+// time update everyday from internet
+bool timeUpdatedFromInternet = false;
+
 /*
   The Arduino setup function
 */
@@ -61,6 +64,8 @@ void loop(){
 
   // update local time every second (controlled by timer ISR)
   if(timeNeedsToBeUpdated) {
+    Serial.print(millis());
+    Serial.println(" : updateCurrentTime()");
     updateCurrentTime();
     timeNeedsToBeUpdated = false;
     // print local time if not in Set Alarm Page
@@ -68,11 +73,14 @@ void loop(){
       displayLocalTimeAndDate();
   }
   
-  // try update time 1 hr after alarm time every day to keep current time accurate
-  if(currentTimeInfo.tm_hour == alarmHour + 1 && currentTimeInfo.tm_min == alarmMin && currentTimeInfo.tm_sec < 1) {
+  // try update time at midnight
+  if(!timeUpdatedFromInternet && currentTimeInfo.tm_hour == 0 && currentTimeInfo.tm_min == 0) {
     connectWiFiAndUpdateCurrentTimeFromInternet();
+    timeUpdatedFromInternet = true;
     delay(1000);  // delay 1 second so as to try updating time only once
   }
+  if(timeUpdatedFromInternet && currentTimeInfo.tm_hour == 1)   //reset for next day time update
+    timeUpdatedFromInternet = false;
 
   // turn off display backlight after BACKLIGHT_TURNOFF_AFTER_MS of being On
   if(backlightOn && millis() - backlightTurnedOnAtMs > BACKLIGHT_TURNOFF_AFTER_MS) {

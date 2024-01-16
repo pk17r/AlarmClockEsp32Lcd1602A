@@ -36,6 +36,33 @@ void displayLocalTimeAndDate(){
     currentDateOnDisplay_yday = currentTimeInfo.tm_yday;
     currentDateOnDisplaySet = true;
   }
+
+  // light sleep until alarm or if backlight is On
+  if(secondsToNextAlarm() > 100 && !backlightOn) {
+    esp_sleep_enable_timer_wakeup(15000000); //15 seconds
+    Serial.print(millis());
+    Serial.println(" : Go To Light Sleep");
+    Serial.flush();
+    esp_light_sleep_start();
+    Serial.print(millis());
+    Serial.println(" : Wake Up");
+  }
+}
+
+/*
+  Seconds to next alarm
+*/
+unsigned long secondsToNextAlarm() {
+  unsigned long secondsRightNowToday = currentTimeInfo.tm_hour * 60 * 60 + currentTimeInfo.tm_min * 60 + currentTimeInfo.tm_sec;
+  unsigned long alarmSecondsToday = alarmHour * 60 * 60 + alarmMin * 60;
+  unsigned long secondsToAlarmToday = 0;
+  if(alarmSecondsToday >= secondsRightNowToday)
+    secondsToAlarmToday = alarmSecondsToday - secondsRightNowToday;
+  else
+    secondsToAlarmToday = alarmSecondsToday + 24*60*60 - secondsRightNowToday;
+  Serial.print("secondsToAlarmToday ");
+  Serial.println(secondsToAlarmToday);
+  return secondsToAlarmToday;
 }
 
 /*
