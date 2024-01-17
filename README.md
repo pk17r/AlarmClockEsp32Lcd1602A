@@ -10,6 +10,8 @@
   - updates time using WiFi from NTC server at start of microcontroller and everyday 1 hr after the set alarm time
   - drives a 90dB passive buzzer at rated frequency using timer of ESP32 and a mosfet at 5V
   - updates displayed time every second, shows today's day and date
+  - ESP32 is put into Light Sleep when display backlight is Off. It is awaken intermitently or by button press
+  - continous Power Consumption is 5V-17.5mA-88mW, 99.8% of time during normal operation. Intermittent Max is 1.3W
 
 To make single button operation possible, a push button arduino library has been made, named
 PushButtonTaps https://github.com/pk17r/PushButtonTaps
@@ -45,5 +47,6 @@ It classifies push button presses as No Tap, Single Tap, Double Tap and Long Pre
   - a_timer_esp32.ino - timer file
   - a_wifi_and_time_info.ino - wifi and time info file
   - b_display_lcd1602a_dependent_functions.ino - display functions that depend upon objects from other files
+  - c_ESP32_Light_Sleep_n_PushBtn.ino - contains ESP32 Put to Light Sleep and Wake functions & Push Button
   - z_user_serial_inputs.ino - serial inputs files
   - secrets_file.h - wifi ssid and password file

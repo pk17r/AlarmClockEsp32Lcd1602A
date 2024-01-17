@@ -12,6 +12,17 @@
   library has been made, named PushButtonTaps. It classifies push button presses as No Tap, Single Tap,
   Double Tap and Long Press.
 
+  ESP32 is put into Light Sleep when display backlight is Off. It is awaken intermitently or by button press.
+
+  Power Consumption:
+  - While using WiFi ~ 160-260mA 0.8W-1.3W - for a few seconds to update time from internet once everyday
+  - While Display backlight is On - 92mA 460mW - for 20 seconds when button is pressed
+  - While Alarm and Buzzer Beep is On - 125mA 625mW - during 0.8 second beeps while Alarm is On
+  - While Display backlight is Off but ESP32 is awake - 75mA - happens for ~30 milliseconds during display time updates
+  - While Display backlight is Off and ESP32 is on Light Sleep - 17.5mA 88mW - happens around 99.8% of the time of the day
+
+  Continous Power Consumption is 5V-17.5mA-88mW, 99.8% of time during normal operation. Intermittent Max is 1.3W.
+
   Video: https://youtu.be/btpxy9vB6y4
   Github: https://github.com/pk17r/LongPressAlarm
   
@@ -53,6 +64,7 @@
   - a_timer_esp32.ino - timer file
   - a_wifi_and_time_info.ino - wifi and time info file
   - b_display_lcd1602a_dependent_functions.ino - display functions that depend upon objects from other files
+  - c_ESP32_Light_Sleep_n_PushBtn.ino - contains ESP32 Put to Light Sleep and Wake functions & Push Button
   - z_user_serial_inputs.ino - serial inputs files
   - secrets_file.h - wifi ssid and password file
 */
