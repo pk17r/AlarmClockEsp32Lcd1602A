@@ -10,7 +10,7 @@ hw_timer_t *passiveBuzzerTimerPtr = NULL;
 const int SECONDS_FREQUENCY = 1;
 volatile bool timeNeedsToBeUpdated = false;
 
-const int BUZZER_PIN = 4;
+const int BUZZER_PIN = 17;
 const int BUZZER_FREQUENCY = 2048;
 const unsigned long BEEP_LENGTH_MS = 800;
 
